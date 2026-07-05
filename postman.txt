@@ -1,0 +1,228 @@
+BASE URL
+http://localhost:3000
+
+============================================================
+1. REGISTER
+============================================================
+
+Method:
+POST
+
+URL:
+http://localhost:3000/api/auth/register
+
+Headers:
+Content-Type: application/json
+
+Body raw JSON:
+{
+  "username": "nguyenvana",
+  "password": "123456",
+  "name": "Nguyen Van A",
+  "email": "nguyenvana@example.com",
+  "phone": "0912345678",
+  "address": "TP.HCM",
+  "role": "member"
+}
+
+Success response example:
+{
+  "ok": true,
+  "message": "Dang ky thanh cong.",
+  "user": {
+    "id": "user_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "username": "nguyenvana",
+    "name": "Nguyen Van A",
+    "email": "nguyenvana@example.com",
+    "phone": "0912345678",
+    "address": "TP.HCM",
+    "cart": [],
+    "role": "member",
+    "status": "active"
+  }
+}
+
+============================================================
+2. LOGIN
+============================================================
+
+Method:
+POST
+
+URL:
+http://localhost:3000/api/auth/login
+
+Headers:
+Content-Type: application/json
+
+Body raw JSON:
+{
+  "usernameOrEmail": "nguyenvana",
+  "password": "123456"
+}
+
+You can also login by email:
+{
+  "usernameOrEmail": "nguyenvana@example.com",
+  "password": "123456"
+}
+
+Success response example:
+{
+  "ok": true,
+  "message": "Dang nhap thanh cong.",
+  "token": "random_token_here",
+  "user": {
+    "id": "user_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "username": "nguyenvana",
+    "name": "Nguyen Van A",
+    "email": "nguyenvana@example.com",
+    "phone": "0912345678",
+    "address": "TP.HCM",
+    "cart": [],
+    "role": "member",
+    "status": "active"
+  }
+}
+
+============================================================
+3. SEED ACCOUNTS AFTER npm run db:init
+============================================================
+
+Admin:
+{
+  "usernameOrEmail": "admin",
+  "password": "admin123"
+}
+
+Seller:
+{
+  "usernameOrEmail": "seller_demo",
+  "password": "seller123"
+}
+
+Member:
+{
+  "usernameOrEmail": "vanhung",
+  "password": "member123"
+}
+
+============================================================
+4. COMMON ERROR RESPONSES
+============================================================
+
+Missing required fields:
+{
+  "ok": false,
+  "message": "username, password, name, email la bat buoc."
+}
+
+Username or email already exists:
+{
+  "ok": false,
+  "message": "Username hoac email da ton tai."
+}
+
+Wrong login:
+{
+  "ok": false,
+  "message": "Sai tai khoan hoac mat khau."
+}
+
+============================================================
+5. SYNC listOrder TO GOOGLE SHEET
+============================================================
+
+Before testing:
+- Fill SMMKAY_API_KEY in .env.local.
+- Fill GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY in .env.local.
+- Share this spreadsheet with GOOGLE_CLIENT_EMAIL:
+  https://docs.google.com/spreadsheets/d/1a1RbH5pvRwDF_mUrwcJWDTwcR3XCJv8fh3Pmy8-VtdM/edit?gid=1590614847#gid=1590614847
+
+Preview listOrder data without writing to Google Sheet:
+
+Method:
+GET
+
+URL:
+http://localhost:3000/api/order-sync/preview?status=Pending
+
+Fetch raw listOrders data:
+
+Method:
+GET
+
+URL:
+http://localhost:3000/api/order-sync/list-order?status=Pending
+
+Append only new listOrders to Google Sheet:
+
+Method:
+POST
+
+URL:
+http://localhost:3000/api/order-sync/append-list-orders-to-sheet
+
+Headers:
+Content-Type: application/json
+
+Body raw JSON:
+{
+  "status": "Pending"
+}
+
+Dry run append:
+{
+  "status": "Pending",
+  "dryRun": true
+}
+
+Success response example:
+{
+  "ok": true,
+  "fetched": 3,
+  "appended": 2,
+  "skippedExisting": 1,
+  "skippedDuplicate": 0,
+  "invalid": 0,
+  "orders": [
+    { "id": "123", "action": "appended" },
+    { "id": "124", "action": "skipped_existing" }
+  ]
+}
+
+Sync Pending orders to Google Sheet with upsert:
+
+Method:
+POST
+
+URL:
+http://localhost:3000/api/order-sync/list-order-to-sheet
+
+Headers:
+Content-Type: application/json
+
+Body raw JSON:
+{
+  "status": "Pending"
+}
+
+Dry run:
+{
+  "status": "Pending",
+  "dryRun": true
+}
+
+Success response example:
+{
+  "ok": true,
+  "fetched": 3,
+  "saved": 2,
+  "updated": 1,
+  "skipped": 0,
+  "invalid": 0,
+  "orders": [
+    { "id": "123", "action": "inserted" },
+    { "id": "124", "action": "updated" }
+  ]
+}

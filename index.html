@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+    <script>
+      // Silence benign Vite HMR WebSocket errors in the sandboxed preview environment
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && (
+          event.reason.message?.includes('WebSocket') ||
+          event.reason.message?.includes('websocket') ||
+          event.reason.message?.includes('vite') ||
+          String(event.reason).includes('WebSocket') ||
+          String(event.reason).includes('websocket') ||
+          String(event.reason).includes('opened')
+        )) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }, true);
+
+      window.addEventListener('error', function(event) {
+        if (event.message && (
+          event.message.includes('WebSocket') ||
+          event.message.includes('websocket') ||
+          event.message.includes('vite') ||
+          event.message.includes('opened')
+        )) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }, true);
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

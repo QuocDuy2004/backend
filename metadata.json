@@ -1,0 +1,6 @@
+{
+  "name": "E-Commerce Admin & AI Support Dashboard",
+  "description": "An enterprise-grade admin control center and AI support dashboard for managing orders, products, real-time inventory, customer journeys, and AI operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
