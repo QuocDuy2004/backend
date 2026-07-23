@@ -78,6 +78,11 @@ export async function listNotifications() {
   return rows.map(publicNotification);
 }
 
+export async function resolveUserIdByEmail(email: string) {
+  const [rows] = await pool.query<any[]>('SELECT id FROM users WHERE email = ? LIMIT 1', [email]);
+  return rows[0] ? String(rows[0].id) : '';
+}
+
 export async function listUserNotifications(userId: string) {
   const [rows] = await pool.query<any[]>(
     `SELECT

@@ -3,15 +3,50 @@ import type { ResultSetHeader } from 'mysql2';
 import { parseJsonField } from '../utils/json';
 import { slugify } from '../utils/slug';
 import { findCategoryRowByName } from './categories.service';
+import { recordEntityChangeLog } from './change-logs.service';
 
 type ProductStatus = 'active' | 'draft' | 'archived';
+const maxProductImagesPayloadBytes = 3 * 1024 * 1024;
+
+function toMoney(value: unknown, fallback = 0) {
+  const amount = Number(value ?? fallback);
+  return Number.isFinite(amount) ? amount : fallback;
+}
+
+function normalizeProductImages(payload: any) {
+  const legacyImage = payload.image || payload.imageUrl || '';
+  const images = Array.isArray(payload.images) && payload.images.length
+    ? payload.images
+    : legacyImage
+      ? [legacyImage]
+      : [];
+  const normalized = images.map((image: unknown) => String(image || '').trim()).filter(Boolean);
+  const payloadBytes = Buffer.byteLength(JSON.stringify(normalized), 'utf8');
+
+  if (payloadBytes > maxProductImagesPayloadBytes) {
+    throw new Error('Dung lượng ảnh sản phẩm quá lớn. Vui lòng chọn ít ảnh hơn hoặc dùng ảnh nhẹ hơn.');
+  }
+
+  return normalized;
+}
+
+function productForChangeLog(product: any) {
+  if (!product) return product;
+  const imageCount = Array.isArray(product.images) ? product.images.length : 0;
+
+  return {
+    ...product,
+    image: product.image ? '[product image]' : '',
+    images: imageCount > 0 ? [`${imageCount} ảnh sản phẩm`] : [],
+  };
+}
 
 function toProduct(row: any) {
   const images = parseJsonField<string[]>(row.images, []);
   const attributes = parseJsonField<any[]>(row.attributes, []);
   const specification = parseJsonField<Record<string, string>>(row.specification, {});
   const stock = Number(row.stock || 0);
-  const price = Number(row.discount_price || row.original_price || 0);
+  const price = toMoney(row.discount_price ?? row.original_price);
 
   return {
     id: row.id,
@@ -22,16 +57,15 @@ function toProduct(row: any) {
     category: row.category_name || 'Uncategorized',
     brand: row.brand,
     price,
-    originalPrice: Number(row.original_price || 0),
-    discountPrice: Number(row.discount_price || 0),
+    originalPrice: toMoney(row.original_price),
+    discountPrice: toMoney(row.discount_price),
     flashSalePrice: row.flash_sale_price == null ? undefined : Number(row.flash_sale_price),
     discountPercent: Number(row.discount_percent || 0),
     cost: 0,
     inventory: stock,
     stock,
     warehouseStock: {
-      'W1-West': Math.floor(stock / 2),
-      'W2-East': Math.ceil(stock / 2),
+      MAIN: stock,
     },
     rating: Number(row.rating || 0),
     sales: 0,
@@ -103,10 +137,9 @@ export async function createProduct(payload: any) {
   if (!categoryId) {
     throw new Error('At least one category is required before creating products.');
   }
-  const price = Number(payload.price || payload.originalPrice || payload.discountPrice || 0);
+  const price = toMoney(payload.price ?? payload.originalPrice ?? payload.discountPrice);
   const stock = Number(payload.inventory ?? payload.stock ?? 0);
-  const legacyImage = payload.image || payload.imageUrl || '';
-  const images = payload.images?.length ? payload.images : legacyImage ? [legacyImage] : [];
+  const images = normalizeProductImages(payload);
 
   const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO products
@@ -124,7 +157,7 @@ export async function createProduct(payload: any) {
       payload.brand || 'InHouse',
       JSON.stringify(images),
       price,
-      Number(payload.discountPrice ?? price),
+      toMoney(payload.discountPrice, price),
       payload.flashSalePrice ?? null,
       Number(payload.discountPercent || 0),
       stock,
@@ -139,7 +172,19 @@ export async function createProduct(payload: any) {
     ]
   );
 
-  return findProductById(String(result.insertId));
+  const product = await findProductById(String(result.insertId));
+  if (product) {
+    await recordEntityChangeLog({
+      entityType: 'product',
+      entityId: product.id,
+      entityName: product.name,
+      action: 'create',
+      summary: `Tạo sản phẩm ${product.name}`,
+      changes: { after: productForChangeLog(product) },
+    });
+  }
+
+  return product;
 }
 
 export async function updateProduct(id: string, payload: any) {
@@ -151,10 +196,9 @@ export async function updateProduct(id: string, payload: any) {
   if (!categoryId) {
     throw new Error('At least one category is required before updating products.');
   }
-  const price = Number(next.price || next.originalPrice || next.discountPrice || 0);
+  const price = toMoney(next.price ?? next.originalPrice ?? next.discountPrice);
   const stock = Number(next.inventory ?? next.stock ?? 0);
-  const legacyImage = next.image || next.imageUrl || '';
-  const images = next.images?.length ? next.images : legacyImage ? [legacyImage] : [];
+  const images = normalizeProductImages(next);
 
   await pool.query(
     `UPDATE products
@@ -172,8 +216,8 @@ export async function updateProduct(id: string, payload: any) {
       slugify(next.name),
       next.brand || 'InHouse',
       JSON.stringify(images),
-      Number(next.originalPrice ?? price),
-      Number(next.discountPrice ?? price),
+      toMoney(next.originalPrice, price),
+      toMoney(next.discountPrice, price),
       next.flashSalePrice ?? null,
       Number(next.discountPercent || 0),
       stock,
@@ -189,9 +233,36 @@ export async function updateProduct(id: string, payload: any) {
     ]
   );
 
-  return findProductById(id);
+  const updated = await findProductById(id);
+  if (updated) {
+    await recordEntityChangeLog({
+      entityType: 'product',
+      entityId: id,
+      entityName: updated.name,
+      action: 'update',
+      summary: `Cập nhật sản phẩm ${updated.name}`,
+      changes: {
+        before: productForChangeLog(existing),
+        after: productForChangeLog(updated),
+      },
+    });
+  }
+
+  return updated;
 }
 
 export async function deleteProduct(id: string) {
+  const existing = await findProductById(id);
   await pool.query('DELETE FROM products WHERE id = ?', [id]);
+
+  if (existing) {
+    await recordEntityChangeLog({
+      entityType: 'product',
+      entityId: id,
+      entityName: existing.name,
+      action: 'delete',
+      summary: `Xóa sản phẩm ${existing.name}`,
+      changes: { before: productForChangeLog(existing) },
+    });
+  }
 }

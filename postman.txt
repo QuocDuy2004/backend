@@ -95,12 +95,6 @@ Admin:
   "password": "admin123"
 }
 
-Seller:
-{
-  "usernameOrEmail": "seller_demo",
-  "password": "seller123"
-}
-
 Member:
 {
   "usernameOrEmail": "vanhung",

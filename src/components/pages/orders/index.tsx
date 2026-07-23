@@ -2,6 +2,7 @@
 import { CreditCard, DollarSign, Download, Layers, Search, ShoppingCart, Truck } from 'lucide-react';
 import type { Order } from '../../../types';
 import { CustomSelect } from '../../shared';
+import { formatVnd } from '../../../lib/currency';
 
 type OrdersPageProps = {
   filteredOrders: Order[];
@@ -12,6 +13,17 @@ type OrdersPageProps = {
   onExportExcel: () => void;
   onSelectOrder: (order: Order) => void;
 };
+
+const formatOrderDateTime = (value: string) =>
+  new Date(value).toLocaleString('vi-VN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
 
 export function OrdersPage({
   filteredOrders,
@@ -32,7 +44,7 @@ export function OrdersPage({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5 text-blue-600" />
-                  <h2 className="text-base font-extrabold text-slate-900">Quản Lý Đơn Hàng & Thanh Toán</h2>
+                  <h2 className="text-base font-extrabold text-slate-900">Quản Lý Đơn Hàng</h2>
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   Theo dõi trạng thái xử lý, vận chuyển, thanh toán và rủi ro AI của từng đơn hàng trong hệ thống.
@@ -43,7 +55,7 @@ export function OrdersPage({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 { label: 'Tổng đơn hàng', value: filteredOrders.length.toLocaleString('vi-VN'), icon: ShoppingCart, tone: 'border-blue-100 bg-blue-50 text-blue-700' },
-                { label: 'Doanh thu', value: `$${totalRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, icon: DollarSign, tone: 'border-emerald-100 bg-emerald-50 text-emerald-700' },
+                { label: 'Doanh thu', value: formatVnd(totalRevenue), icon: DollarSign, tone: 'border-emerald-100 bg-emerald-50 text-emerald-700' },
                 { label: 'Đang giao', value: shippingCount.toLocaleString('vi-VN'), icon: Truck, tone: 'border-indigo-100 bg-indigo-50 text-indigo-700' },
                 { label: 'Chờ xử lý', value: `${pendingCount} đơn`, icon: CreditCard, tone: 'border-amber-100 bg-amber-50 text-amber-700' },
               ].map(item => (
@@ -116,7 +128,7 @@ export function OrdersPage({
                   {filteredOrders.map(order => (
                     <tr key={order.id} className="cursor-pointer transition-colors hover:bg-blue-50/35" onClick={() => setActiveOrder(order)}>
                       <td className="px-5 py-3 font-mono font-bold text-blue-700 hover:underline">{order.id}</td>
-                      <td className="px-5 py-3 text-slate-500 font-semibold">{new Date(order.date).toLocaleDateString()}</td>
+                      <td className="px-5 py-3 text-slate-500 font-semibold">{formatOrderDateTime(order.date)}</td>
                       <td className="px-5 py-3">
                         <div className="font-bold text-slate-800">{order.customerName}</div>
                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">{order.customerEmail}</div>
@@ -126,7 +138,7 @@ export function OrdersPage({
                           {order.items.map(it => `${it.productName} (x${it.quantity})`).join(', ')}
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-right font-mono font-extrabold text-slate-900">${order.total.toFixed(2)}</td>
+                      <td className="px-5 py-3 text-right font-mono font-extrabold text-slate-900">{formatVnd(order.total)}</td>
                       <td className="px-5 py-3 text-center">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
                           order.fraudRisk === 'high' 
@@ -190,7 +202,7 @@ export function OrdersPage({
                       <span className="text-[10px] text-slate-400 font-semibold block uppercase">Mã giao dịch</span>
                       <span className="font-mono font-bold text-blue-700 text-sm hover:underline">{order.id}</span>
                     </div>
-                    <span className="text-slate-500 font-semibold text-xs">{new Date(order.date).toLocaleDateString()}</span>
+                    <span className="text-slate-500 font-semibold text-xs">{formatOrderDateTime(order.date)}</span>
                   </div>
 
                   <div className="space-y-1.5 text-xs">
@@ -210,7 +222,7 @@ export function OrdersPage({
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
                     <div>
                       <span className="text-slate-400 block text-[10px] uppercase font-semibold">Tổng tiền</span>
-                      <span className="font-mono font-extrabold text-[#0F172A] text-sm">${order.total.toFixed(2)}</span>
+                      <span className="font-mono font-extrabold text-[#0F172A] text-sm">{formatVnd(order.total)}</span>
                     </div>
                     <div className="text-right">
                       <span className="text-slate-400 block text-[10px] uppercase font-semibold">Rủi ro AI</span>
@@ -265,5 +277,6 @@ export function OrdersPage({
   );
 }
 
+export default OrdersPage;
 
 

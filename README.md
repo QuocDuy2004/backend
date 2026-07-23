@@ -120,12 +120,11 @@ Successful response includes a JWT access token:
 Seed accounts after `npm run db:init`:
 
 - `admin` / `admin123`
-- `seller_demo` / `seller123`
 - `vanhung` / `member123`
 
 ### Main schema
 
-- `users`: one table for customers, sellers, and admins. Permissions are controlled by `role` (`member`, `seller`, `admin`). The login password is stored in `password` as an MD5 value. The `cart` column is JSON and stores product IDs added to cart.
+- `users`: one table for customers, sellers, and admins. Permissions are controlled by `role` (`member`, `seller`, `admin`). The login password is stored in `password` as an MD5 value. The default seed creates one `admin` and one `member`; cart and favorites start empty.
 - `categories`, `banners`, `products`, `users`, `user_address`, `reviews`, `user_vouchers`, `notifications`, `user_notifications`, `payments`, `settings`: compact ecommerce tables matched to the Expo frontend and admin dashboard.
 - `notifications` and `user_notifications` cover global notices plus per-user read/archive state for the app.
 - `products.images`, `products.attributes`, `products.specification`, `payments.config`, and settings values are JSON so the mobile checkout/admin screens can keep rich UI data without many extra join tables.

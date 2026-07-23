@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
-dotenv.config();
+dotenv.config({ path: '.env.local', quiet: true });
+dotenv.config({ quiet: true });
 
 export const env = {
   port: Number(process.env.PORT || 3000),

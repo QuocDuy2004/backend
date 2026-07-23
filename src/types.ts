@@ -158,6 +158,8 @@ export interface Customer {
   status?: 'active' | 'blocked' | 'deleted';
   image?: string;
   joinedDate: string;
+  createdAt?: string;
+  updatedAt?: string;
   tier: 'VIP' | 'Regular' | 'New' | 'Loyal';
   ordersCount: number;
   churnRisk: 'low' | 'medium' | 'high';
@@ -177,6 +179,15 @@ export interface SupportMessage {
   sender: 'customer' | 'ai' | 'agent';
   text: string;
   timestamp: string;
+  metadata?: {
+    actions?: Array<{ id: string; label: string; type: string; productId?: string }>;
+    suggestions?: Array<{
+      id: string;
+      title: string;
+      subtitle?: string;
+      product?: Partial<Product> & { image?: string; soldCount?: number };
+    }>;
+  };
 }
 
 export interface SupportTicket {

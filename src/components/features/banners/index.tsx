@@ -1,8 +1,9 @@
 ﻿import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRef } from 'react';
-import { BadgePercent, CalendarClock, Eye, Megaphone, Pencil, Plus, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
+import { BadgePercent, Eye, History, Megaphone, Pencil, Plus, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import type { Banner, BannerStatus, Category } from '../../../types';
+import { bannersApi, type EntityChangeLog } from '../../../lib/api';
 import { CustomSelect } from '../../shared';
 
 type BannerForm = {
@@ -211,9 +212,8 @@ function toPayload(form: BannerForm, categories: Category[]) {
 }
 
 function statusLabel(status: BannerStatus) {
-  if (status === 'active') return 'Đang hiển thị';
-  if (status === 'scheduled') return 'Đã lên lịch';
-  return 'Tạm ẩn';
+  if (status === 'active') return 'Hoạt động';
+  return 'Tạm dừng';
 }
 
 function statusClassName(status: BannerStatus) {
@@ -242,25 +242,7 @@ function targetParamsSummary(params: Record<string, unknown>) {
   return entries.map(([key, value]) => `${key}: ${String(value)}`).join(' · ');
 }
 
-async function readJsonResponse(response: Response) {
-  const text = await response.text();
-  if (!text.trim()) {
-    return { ok: response.ok };
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return {
-      ok: false,
-      message: response.ok
-        ? 'Máy chủ trả dữ liệu không đúng định dạng JSON.'
-        : `Máy chủ trả lỗi ${response.status}.`,
-    };
-  }
-}
-
-export default function BannersView({ categories }: { categories: Category[] }) {
+export function BannersView({ categories }: { categories: Category[] }) {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [form, setForm] = useState<BannerForm>(emptyForm);
   const [search, setSearch] = useState('');
@@ -271,7 +253,10 @@ export default function BannersView({ categories }: { categories: Category[] }) 
   const [activeBanner, setActiveBanner] = useState<Banner | null>(null);
   const [stylePickerBanner, setStylePickerBanner] = useState<Banner | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'routing' | 'style'>('overview');
+  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'style' | 'history'>('overview');
+  const [changeLogs, setChangeLogs] = useState<EntityChangeLog[]>([]);
+  const [changeLogsLoading, setChangeLogsLoading] = useState(false);
+  const [changeLogsError, setChangeLogsError] = useState('');
   const [isDetailEditing, setIsDetailEditing] = useState(false);
   const [savingStyleKey, setSavingStyleKey] = useState('');
   const [pendingStyleColor, setPendingStyleColor] = useState('#3ADF00');
@@ -279,9 +264,7 @@ export default function BannersView({ categories }: { categories: Category[] }) 
   const detailBodyRef = useRef<HTMLDivElement | null>(null);
 
   const loadBanners = async () => {
-    const response = await fetch('/api/banners?includeInactive=true');
-    const data = await readJsonResponse(response);
-    if (!data.ok) throw new Error(data.message || 'Không tải được danh sách banner.');
+    const data = await bannersApi.list(true);
     setBanners(Array.isArray(data.banners) ? data.banners : []);
   };
 
@@ -300,6 +283,17 @@ export default function BannersView({ categories }: { categories: Category[] }) 
     if (!isDetailEditing) return;
     detailBodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [isDetailEditing]);
+
+  useEffect(() => {
+    if (!activeBanner || activeDetailTab !== 'history') return;
+
+    setChangeLogsLoading(true);
+    setChangeLogsError('');
+    bannersApi.changeLogs(activeBanner.id)
+      .then((data) => setChangeLogs(data.logs || []))
+      .catch((err: any) => setChangeLogsError(err.message || 'Không thể tải nhật ký thay đổi.'))
+      .finally(() => setChangeLogsLoading(false));
+  }, [activeBanner?.id, activeBanner?.updatedAt, activeDetailTab]);
 
   const filteredBanners = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -321,8 +315,13 @@ export default function BannersView({ categories }: { categories: Category[] }) 
   const stats = {
     total: banners.length,
     active: banners.filter(item => item.status === 'active').length,
-    scheduled: banners.filter(item => item.status === 'scheduled').length,
     inactive: banners.filter(item => item.status === 'inactive').length,
+    linked: banners.filter(item => Boolean(item.categoryId)).length,
+  };
+  const actionLabels: Record<EntityChangeLog['action'], string> = {
+    create: 'Tạo mới',
+    update: 'Cập nhật',
+    delete: 'Xóa',
   };
 
   const updateForm = <K extends keyof BannerForm>(key: K, value: BannerForm[K]) => {
@@ -335,13 +334,9 @@ export default function BannersView({ categories }: { categories: Category[] }) 
     setIsSaving(true);
 
     try {
-      const response = await fetch(form.id ? `/api/banners/${form.id}` : '/api/banners', {
-        method: form.id ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(toPayload(form, categories)),
-      });
-      const data = await readJsonResponse(response);
-      if (!data.ok) throw new Error(data.message || 'Không lưu được banner.');
+      const data = form.id
+        ? await bannersApi.update(form.id, toPayload(form, categories))
+        : await bannersApi.create(toPayload(form, categories));
       if (!data.banner) throw new Error('Máy chủ chưa trả dữ liệu banner sau khi lưu.');
 
       setBanners(prev => {
@@ -364,9 +359,7 @@ export default function BannersView({ categories }: { categories: Category[] }) 
     if (!window.confirm(`Bạn có chắc muốn xóa banner "${banner.title}"?`)) return;
 
     try {
-      const response = await fetch(`/api/banners/${banner.id}`, { method: 'DELETE' });
-      const data = await readJsonResponse(response);
-      if (!data.ok) throw new Error(data.message || 'Không xóa được banner.');
+      await bannersApi.remove(banner.id);
       setBanners(prev => prev.filter(item => item.id !== banner.id));
       if (form.id === banner.id) setForm(emptyForm);
       if (activeBanner?.id === banner.id) setActiveBanner(null);
@@ -377,15 +370,10 @@ export default function BannersView({ categories }: { categories: Category[] }) 
   };
 
   const handleQuickStatus = async (banner: Banner) => {
-    const response = await fetch(`/api/banners/${banner.id}/toggle`, {
-      method: 'PATCH',
-    });
-    const data = await readJsonResponse(response);
-    if (data.ok) {
-      if (!data.banner) return;
-      setBanners(prev => prev.map(item => item.id === banner.id ? data.banner : item));
-      if (activeBanner?.id === banner.id) setActiveBanner(data.banner);
-    }
+    const data = await bannersApi.toggle(banner.id);
+    if (!data.banner) return;
+    setBanners(prev => prev.map(item => item.id === banner.id ? data.banner : item));
+    if (activeBanner?.id === banner.id) setActiveBanner(data.banner);
   };
 
   const toggleBannerSelection = (id: string, checked: boolean) => {
@@ -406,9 +394,7 @@ export default function BannersView({ categories }: { categories: Category[] }) 
     setError('');
     try {
       await Promise.all(selectedBanners.map(async (banner) => {
-        const response = await fetch(`/api/banners/${banner.id}`, { method: 'DELETE' });
-        const data = await readJsonResponse(response);
-        if (!data.ok) throw new Error(data.message || `Không xóa được banner ${banner.title}.`);
+        await bannersApi.remove(banner.id);
       }));
       const selectedSet = new Set(selectedBannerIds);
       setBanners(prev => prev.filter(item => !selectedSet.has(item.id)));
@@ -429,13 +415,10 @@ export default function BannersView({ categories }: { categories: Category[] }) 
     setError('');
     try {
       const updated = await Promise.all(selectedBanners.map(async (banner) => {
-        const response = await fetch(`/api/banners/${banner.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(toPayload({ ...bannerToForm(banner), status: 'active' }, categories)),
-        });
-        const data = await readJsonResponse(response);
-        if (!data.ok) throw new Error(data.message || `Không kích hoạt được banner ${banner.title}.`);
+        const data = await bannersApi.update(
+          banner.id,
+          toPayload({ ...bannerToForm(banner), status: 'active' }, categories)
+        );
         if (!data.banner) throw new Error(`Máy chủ chưa trả dữ liệu banner ${banner.title}.`);
         return data.banner as Banner;
       }));
@@ -467,13 +450,7 @@ export default function BannersView({ categories }: { categories: Category[] }) 
         },
         categories
       );
-      const response = await fetch(`/api/banners/${banner.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await readJsonResponse(response);
-      if (!data.ok) throw new Error(data.message || 'Không cập nhật được màu banner.');
+      const data = await bannersApi.update(banner.id, payload);
       if (!data.banner) throw new Error('Máy chủ chưa trả dữ liệu banner sau khi cập nhật màu.');
 
       setBanners(prev => prev.map(item => item.id === banner.id ? data.banner : item));
@@ -510,13 +487,7 @@ export default function BannersView({ categories }: { categories: Category[] }) 
         },
         categories
       );
-      const response = await fetch(`/api/banners/${stylePickerBanner.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await readJsonResponse(response);
-      if (!data.ok) throw new Error(data.message || 'Không lưu được màu banner.');
+      const data = await bannersApi.update(stylePickerBanner.id, payload);
       if (!data.banner) throw new Error('Máy chủ chưa trả dữ liệu banner sau khi lưu màu.');
 
       setBanners(prev => prev.map(item => item.id === stylePickerBanner.id ? data.banner : item));
@@ -546,13 +517,7 @@ export default function BannersView({ categories }: { categories: Category[] }) 
     setIsSaving(true);
 
     try {
-      const response = await fetch(`/api/banners/${form.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(toPayload(form, categories)),
-      });
-      const data = await readJsonResponse(response);
-      if (!data.ok) throw new Error(data.message || 'Không lưu được banner.');
+      const data = await bannersApi.update(form.id, toPayload(form, categories));
       if (!data.banner) throw new Error('Máy chủ chưa trả dữ liệu banner sau khi lưu.');
 
       setBanners(prev => prev.map(item => item.id === data.banner.id ? data.banner : item));
@@ -567,14 +532,14 @@ export default function BannersView({ categories }: { categories: Category[] }) 
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 rounded-2xl border border-blue-100/60 bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-5 md:flex-row md:items-center md:justify-between">
+      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-5 rounded-2xl border border-blue-100/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Megaphone className="h-5 w-5 text-blue-600" />
+            <Megaphone className="w-5 h-5 text-blue-600" />
             <h2 className="text-base font-extrabold text-slate-900">Quản lý banner trang chủ</h2>
           </div>
           <p className="text-xs leading-relaxed text-slate-500">
-            Quản lý banner theo bảng database `banners`: nội dung, CTA, điều hướng Expo, danh mục liên kết, màu giao diện và lịch hiển thị.
+            Quản lý banner theo bảng database `banners`: nội dung, CTA, danh mục liên kết, màu giao diện và trạng thái hiển thị.
           </p>
         </div>
         <button
@@ -591,9 +556,9 @@ export default function BannersView({ categories }: { categories: Category[] }) 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: 'Tổng banner', value: stats.total, icon: Megaphone, tone: 'border-blue-100 bg-blue-50 text-blue-700' },
-          { label: 'Đang hiển thị', value: stats.active, icon: Eye, tone: 'border-emerald-100 bg-emerald-50 text-emerald-700' },
-          { label: 'Đã lên lịch', value: stats.scheduled, icon: CalendarClock, tone: 'border-amber-100 bg-amber-50 text-amber-700' },
-          { label: 'Tạm ẩn', value: stats.inactive, icon: ShieldCheck, tone: 'border-slate-100 bg-slate-50 text-slate-600' },
+          { label: 'Hoạt động', value: stats.active, icon: Eye, tone: 'border-emerald-100 bg-emerald-50 text-emerald-700' },
+          { label: 'Có danh mục', value: stats.linked, icon: BadgePercent, tone: 'border-amber-100 bg-amber-50 text-amber-700' },
+          { label: 'Tạm dừng', value: stats.inactive, icon: ShieldCheck, tone: 'border-slate-100 bg-slate-50 text-slate-600' },
         ].map(item => (
           <div key={item.label} className="flex min-h-[92px] items-center justify-between rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <div>
@@ -630,24 +595,21 @@ export default function BannersView({ categories }: { categories: Category[] }) 
               onChange={(value) => setStatusFilter(value as typeof statusFilter)}
               options={[
                 { value: 'all', label: 'Tất cả trạng thái' },
-                { value: 'active', label: 'Đang hiển thị' },
-                { value: 'scheduled', label: 'Đã lên lịch' },
-                { value: 'inactive', label: 'Tạm ẩn' },
+                { value: 'active', label: 'Hoạt động' },
+                { value: 'inactive', label: 'Tạm dừng' },
               ]}
             />
           </div>
 
           <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
             <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-[1380px] w-full border-collapse text-left">
+              <table className="min-w-[980px] w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase text-slate-400">
-                    <th className="px-4 py-3 w-[240px]">Preview</th>
+                    <th className="px-4 py-3 w-[220px]">Preview</th>
                     <th className="px-4 py-3">Nội dung banner</th>
                     <th className="px-4 py-3 w-[180px]">Danh mục</th>
-                    <th className="px-4 py-3 w-[250px]">Điều hướng</th>
-                    <th className="px-4 py-3 w-[210px]">Lịch hiển thị</th>
-                    <th className="px-4 py-3 w-[170px]">Style</th>
+                    <th className="px-4 py-3 w-[150px]">Style</th>
                     <th className="px-4 py-3 text-center w-[88px]">Thứ tự</th>
                     <th className="px-5 py-3 text-center">Trạng thái</th>
                     <th className="px-5 py-3 text-center w-[110px]">Thao tác</th>
@@ -704,23 +666,6 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                         <p className="font-bold text-slate-700">{banner.categoryName || 'Tất cả danh mục'}</p>
                         <p className="mt-1 font-mono text-[10px] text-slate-400">{banner.categorySlug || 'global'}</p>
                       </td>
-                      <td className="px-4 py-4">
-                        <p className="inline-flex rounded-md bg-slate-100 px-2 py-1 font-mono text-[10px] font-bold text-slate-700">{banner.targetPath}</p>
-                        <p className="mt-2 text-[10px] font-semibold text-slate-500">{targetParamsSummary(banner.targetParams)}</p>
-                        <p className="mt-1 text-[10px] font-bold text-blue-600">CTA: {banner.cta}</p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="space-y-2 text-[10px]">
-                          <div>
-                            <span className="block font-bold uppercase text-slate-400">Bắt đầu</span>
-                            <span className="font-mono font-semibold text-slate-700">{formatDateTime(banner.startsAt)}</span>
-                          </div>
-                          <div>
-                            <span className="block font-bold uppercase text-slate-400">Kết thúc</span>
-                            <span className="font-mono font-semibold text-slate-700">{formatDateTime(banner.expiresAt)}</span>
-                          </div>
-                        </div>
-                      </td>
                       <td className="px-4 py-4" onClick={(event) => event.stopPropagation()}>
                         <button
                           type="button"
@@ -750,7 +695,7 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                               banner.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200'
                             }`}
-                            title={banner.status === 'active' ? 'Ẩn banner' : 'Hiện banner'}
+                            title={banner.status === 'active' ? 'Tạm dừng banner' : 'Kích hoạt banner'}
                           >
                             <span
                               className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
@@ -764,7 +709,7 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                   ))}
                   {filteredBanners.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="py-12 text-center text-sm text-slate-400">Không tìm thấy banner nào phù hợp.</td>
+                      <td colSpan={7} className="py-12 text-center text-sm text-slate-400">Không tìm thấy banner nào phù hợp.</td>
                     </tr>
                   )}
                 </tbody>
@@ -799,22 +744,11 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-extrabold text-slate-950">{banner.categoryName || 'Tất cả danh mục'}</p>
-                      <p className="mt-1 font-mono text-[10px] text-slate-400">{banner.targetPath}</p>
-                      <p className="mt-1 text-[10px] font-semibold text-slate-500">{targetParamsSummary(banner.targetParams)}</p>
+                      <p className="mt-1 text-[10px] font-semibold text-slate-500">{banner.detailLabel}</p>
                     </div>
                     <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusClassName(banner.status)}`}>
                       {statusLabel(banner.status)}
                     </span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-[10px] sm:grid-cols-2">
-                    <div>
-                      <span className="block font-bold uppercase text-slate-400">Bắt đầu</span>
-                      <span className="font-mono font-semibold text-slate-700">{formatDateTime(banner.startsAt)}</span>
-                    </div>
-                    <div>
-                      <span className="block font-bold uppercase text-slate-400">Kết thúc</span>
-                      <span className="font-mono font-semibold text-slate-700">{formatDateTime(banner.expiresAt)}</span>
-                    </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-3" onClick={(event) => event.stopPropagation()}>
                     <button
@@ -830,7 +764,7 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                       className={`relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                         banner.status === 'active' ? 'bg-emerald-500' : 'bg-slate-200'
                       }`}
-                      title={banner.status === 'active' ? 'Ẩn banner' : 'Hiện banner'}
+                      title={banner.status === 'active' ? 'Tạm dừng banner' : 'Kích hoạt banner'}
                     >
                       <span
                         className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
@@ -933,19 +867,15 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                 onChange={event => updateForm('status', event.target.value as BannerStatus)}
                 className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
               >
-                <option value="active">Đang hiển thị</option>
-                <option value="scheduled">Đã lên lịch</option>
-                <option value="inactive">Tạm ẩn</option>
+                <option value="active">Hoạt động</option>
+                <option value="inactive">Tạm dừng</option>
               </select>
             </label>
-            <Field label="Target path" value={form.targetPath} onChange={value => updateForm('targetPath', value)} />
             <Field label="Thứ tự" type="number" value={String(form.sortOrder)} onChange={value => updateForm('sortOrder', Number(value))} />
             <Field label="Icon chính" value={form.iconName} onChange={value => updateForm('iconName', value)} />
             <Field label="Icon phụ" value={form.detailIconName} onChange={value => updateForm('detailIconName', value)} />
             <Field label="Nhãn phụ" value={form.detailLabel} onChange={value => updateForm('detailLabel', value)} />
             <Field label="Màu chữ nút" value={form.buttonTextColor} onChange={value => updateForm('buttonTextColor', value)} />
-            <Field label="Bắt đầu" type="datetime-local" value={form.startsAt} onChange={value => updateForm('startsAt', value)} />
-            <Field label="Kết thúc" type="datetime-local" value={form.expiresAt} onChange={value => updateForm('expiresAt', value)} />
           </div>
 
           <div>
@@ -1177,9 +1107,9 @@ export default function BannersView({ categories }: { categories: Category[] }) 
             {!isDetailEditing && (
             <div className="flex shrink-0 overflow-x-auto border-b border-slate-100 bg-white px-4 sm:px-6">
               {[
-                { id: 'overview', label: 'Thông số banner' },
-                { id: 'routing', label: 'Điều hướng & lịch' },
+                { id: 'overview', label: 'Thông tin banner' },
                 { id: 'style', label: 'Giao diện' },
+                { id: 'history', label: `Nhật ký thay đổi (${changeLogs.length})` },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -1256,22 +1186,13 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                           onChange={event => updateForm('status', event.target.value as BannerStatus)}
                           className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         >
-                          <option value="active">Đang hiển thị</option>
-                          <option value="scheduled">Đã lên lịch</option>
-                          <option value="inactive">Tạm ẩn</option>
+                          <option value="active">Hoạt động</option>
+                          <option value="inactive">Tạm dừng</option>
                         </select>
                       </label>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <Field label="Target path" value={form.targetPath} onChange={value => updateForm('targetPath', value)} />
-                      <Field label="Thứ tự hiển thị" type="number" value={String(form.sortOrder)} onChange={value => updateForm('sortOrder', Number(value))} />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <Field label="Bắt đầu" type="datetime-local" value={form.startsAt} onChange={value => updateForm('startsAt', value)} />
-                      <Field label="Kết thúc" type="datetime-local" value={form.expiresAt} onChange={value => updateForm('expiresAt', value)} />
-                    </div>
+                    <Field label="Thứ tự hiển thị" type="number" value={String(form.sortOrder)} onChange={value => updateForm('sortOrder', Number(value))} />
 
                     <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                       <h4 className="mb-3 text-xs font-bold uppercase text-slate-700">Giao diện phụ</h4>
@@ -1315,6 +1236,16 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                       </span>
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <InfoTile label="Icon chính" value={activeBanner.iconName} />
+                    <InfoTile label="Nhãn phụ" value={activeBanner.detailLabel} />
+                    <InfoTile label="Ngày tạo" value={formatDateTime(activeBanner.createdAt)} mono />
+                    <InfoTile label="Cập nhật cuối" value={formatDateTime(activeBanner.updatedAt)} mono />
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <InfoTile label="Nền banner" value={activeBanner.bgClassName} mono />
+                    <InfoTile label="Màu chữ nút" value={activeBanner.buttonTextColor} mono />
+                  </div>
                   <div className="space-y-1.5">
                     <span className="block text-[10px] font-bold uppercase text-slate-400">Mô tả banner</span>
                     <div className="rounded-xl border border-slate-150 bg-slate-50 p-4 text-xs font-medium leading-relaxed text-slate-600">
@@ -1329,35 +1260,6 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                       </div>
                     </div>
                   )}
-                </div>
-              )}
-
-              {activeDetailTab === 'routing' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <InfoTile label="Target path" value={activeBanner.targetPath} mono />
-                    <InfoTile label="Slug danh mục" value={activeBanner.categorySlug || 'global'} mono />
-                  </div>
-                  <div className="space-y-1.5">
-                    <span className="block text-[10px] font-bold uppercase text-slate-400">Target params</span>
-                    <div className="rounded-xl border border-slate-150 bg-slate-50 p-4 font-mono text-xs font-medium leading-relaxed text-slate-600">
-                      {targetParamsSummary(activeBanner.targetParams)}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-slate-150 bg-slate-50 p-4">
-                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-1.5 text-xs font-bold uppercase text-slate-400">
-                      <span>Lịch hiển thị</span>
-                      <span>Thời gian</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2 text-xs font-semibold text-slate-600">
-                      <span>Bắt đầu</span>
-                      <span className="font-mono font-bold text-slate-800">{formatDateTime(activeBanner.startsAt)}</span>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-slate-200/60 pt-2 text-xs font-semibold text-slate-600">
-                      <span>Kết thúc</span>
-                      <span className="font-mono font-bold text-slate-800">{formatDateTime(activeBanner.expiresAt)}</span>
-                    </div>
-                  </div>
                 </div>
               )}
 
@@ -1426,6 +1328,58 @@ export default function BannersView({ categories }: { categories: Category[] }) 
                   </div>
                 </div>
               )}
+
+              {activeDetailTab === 'history' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <History className="h-5 w-5 text-blue-600" />
+                    <h4 className="text-sm font-bold text-slate-800">Nhật ký thay đổi</h4>
+                  </div>
+
+                  <div className="relative ml-2 space-y-6 border-l-2 border-slate-100 pl-4">
+                    {changeLogsLoading && (
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-semibold text-slate-400">
+                        Đang tải nhật ký thay đổi...
+                      </div>
+                    )}
+
+                    {changeLogsError && (
+                      <div className="rounded-lg border border-rose-100 bg-rose-50 p-3 text-xs font-semibold text-rose-600">
+                        {changeLogsError}
+                      </div>
+                    )}
+
+                    {!changeLogsLoading && !changeLogsError && changeLogs.map((log) => (
+                      <div key={log.id} className="relative">
+                        <span className={`absolute -left-[25px] top-1 h-3 w-3 rounded-full border-2 border-white ring-4 ${
+                          log.action === 'create'
+                            ? 'bg-emerald-500 ring-emerald-50'
+                            : log.action === 'delete'
+                            ? 'bg-rose-500 ring-rose-50'
+                            : 'bg-blue-500 ring-blue-50'
+                        }`}></span>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-3.5">
+                          <div className="flex items-center justify-between gap-3 text-xs font-medium normal-case text-slate-800">
+                            <span>{actionLabels[log.action]} banner</span>
+                            <span className="font-normal text-slate-400">{formatDateTime(log.createdAt)}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">{log.summary}</p>
+                          <span className="mt-2 block text-[10px] font-semibold uppercase tracking-wide text-slate-400">Người sửa đổi: {log.actorName || 'Quản trị viên'}</span>
+                        </div>
+                      </div>
+                    ))}
+
+                    {!changeLogsLoading && !changeLogsError && changeLogs.length === 0 && (
+                      <div className="relative">
+                        <span className="absolute -left-[25px] top-1 h-3 w-3 rounded-full border-2 border-white bg-slate-300 ring-4 ring-slate-50"></span>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-3.5">
+                          <p className="text-xs text-slate-500">Chưa có nhật ký thay đổi trong database.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               </>
               )}
             </div>
@@ -1435,6 +1389,8 @@ export default function BannersView({ categories }: { categories: Category[] }) 
     </div>
   );
 }
+
+export default BannersView;
 
 function InfoTile({
   label,

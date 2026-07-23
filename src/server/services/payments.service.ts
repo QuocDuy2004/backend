@@ -30,16 +30,13 @@ function publicPayment(row: any) {
     code: row.code,
     name: row.title,
     title: row.title,
-    subtitle: row.subtitle,
     provider: row.code,
     logoType: logoUri ? 'image' : 'text',
     logoText: style.logoText,
     logoUri,
     logoBgClassName: style.logoBg,
     toneClassName: style.tone,
-    paymentStatusOnOrder: row.payment_status_on_order,
     status: row.status,
-    sortOrder: row.sort_order,
     config,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -49,11 +46,11 @@ function publicPayment(row: any) {
 export async function listPayments(includeInactive = false) {
   const [rows] = await pool.query<any[]>(
     `SELECT
-       id, code, title, subtitle, logo_uri,
-       payment_status_on_order, status, sort_order, config, created_at, updated_at
+       id, code, title, logo_uri,
+       status, config, created_at, updated_at
      FROM payments
      ${includeInactive ? '' : "WHERE status = 'active'"}
-     ORDER BY sort_order ASC, id ASC`
+     ORDER BY id ASC`
   );
 
   return rows.map(publicPayment);
@@ -62,26 +59,44 @@ export async function listPayments(includeInactive = false) {
 export async function updatePayment(
   code: string,
   payload: {
+    title?: string;
     status?: string;
-    paymentStatusOnOrder?: string;
+    logoUri?: string;
     config?: Record<string, unknown>;
   }
 ) {
   const status = payload.status === 'inactive' ? 'inactive' : 'active';
-  const paymentStatusOnOrder = payload.paymentStatusOnOrder === 'paid' ? 'paid' : 'pending';
   const config = payload.config && typeof payload.config === 'object' ? payload.config : {};
+  const hasLogoUri = typeof payload.logoUri === 'string';
+  const logoUri = hasLogoUri ? payload.logoUri!.trim() || null : null;
+  const title = typeof payload.title === 'string' && payload.title.trim() ? payload.title.trim() : undefined;
+  const updates = ['status = ?', 'config = ?'];
+  const params: unknown[] = [status, JSON.stringify(config)];
+
+  if (title !== undefined) {
+    updates.push('title = ?');
+    params.push(title);
+  }
+
+  if (hasLogoUri) {
+    updates.push('logo_uri = ?');
+    params.push(logoUri);
+  }
+
+  updates.push('updated_at = NOW()');
+  params.push(code);
 
   await pool.query(
     `UPDATE payments
-     SET status = ?, payment_status_on_order = ?, config = ?, updated_at = NOW()
+     SET ${updates.join(', ')}
      WHERE code = ?`,
-    [status, paymentStatusOnOrder, JSON.stringify(config), code]
+    params
   );
 
   const [rows] = await pool.query<any[]>(
     `SELECT
-       id, code, title, subtitle, logo_uri,
-       payment_status_on_order, status, sort_order, config, created_at, updated_at
+       id, code, title, logo_uri,
+       status, config, created_at, updated_at
      FROM payments
      WHERE code = ?
      LIMIT 1`,
@@ -89,4 +104,46 @@ export async function updatePayment(
   );
 
   return rows[0] ? publicPayment(rows[0]) : null;
+}
+
+export async function createPayment(payload: {
+  code: string;
+  title: string;
+  logoUri?: string;
+  status?: string;
+  config?: Record<string, unknown>;
+}) {
+  const code = payload.code.trim();
+  const title = payload.title.trim();
+  const logoUri = typeof payload.logoUri === 'string' ? payload.logoUri.trim() || null : null;
+  const status = payload.status === 'inactive' ? 'inactive' : 'active';
+  const config = payload.config && typeof payload.config === 'object' ? payload.config : {};
+
+  await pool.query(
+    `INSERT INTO payments
+       (code, title, logo_uri, status, config)
+     VALUES (?, ?, ?, ?, ?)`,
+    [code, title, logoUri, status, JSON.stringify(config)]
+  );
+
+  const [rows] = await pool.query<any[]>(
+    `SELECT
+       id, code, title, logo_uri,
+       status, config, created_at, updated_at
+     FROM payments
+     WHERE code = ?
+     LIMIT 1`,
+    [code]
+  );
+
+  return rows[0] ? publicPayment(rows[0]) : null;
+}
+
+export async function deletePayment(code: string) {
+  const [result] = await pool.query<any>(
+    'DELETE FROM payments WHERE code = ?',
+    [code]
+  );
+
+  return Number(result?.affectedRows || 0) > 0;
 }

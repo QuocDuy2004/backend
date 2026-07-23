@@ -4,6 +4,7 @@ import {
   Star, MessageSquare, Check, X, Search, Filter, 
   Sparkles, Trash2, User, ShoppingBag, Send, AlertTriangle, CheckCircle 
 } from 'lucide-react';
+import { aiApi } from '../../../lib/api';
 import CustomSelect from '../../shared/ui/CustomSelect';
 
 interface ReviewsViewProps {
@@ -12,7 +13,7 @@ interface ReviewsViewProps {
   products: Product[];
 }
 
-export default function ReviewsView({
+export function ReviewsView({
   reviews,
   setReviews,
   products
@@ -69,17 +70,12 @@ export default function ReviewsView({
   const handleGenerateAiReply = async (rev: ProductReview) => {
     setIsGeneratingAiReply(true);
     try {
-      const response = await fetch('/api/ai/describe-product', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data = await aiApi.describeProduct({
           productName: rev.productName,
           category: 'Review Response',
           brand: rev.customerName,
           keyFeatures: `The customer rated it ${rev.rating} stars and said: "${rev.comment}". Provide a highly polite and empathetic customer service reply in Vietnamese. Keep it warm and natural.`
-        })
       });
-      const data = await response.json();
       if (data.description) {
         setReplyText(data.description);
       } else {
@@ -110,7 +106,7 @@ export default function ReviewsView({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* HEADER ROW */}
-      <div className="bg-gradient-to-r from-indigo-500/10 via-blue-500/5 to-transparent p-5 rounded-2xl border border-indigo-100/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-5 rounded-2xl border border-blue-100/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Star className="w-5 h-5 text-indigo-600 fill-indigo-600/20" />
@@ -386,6 +382,8 @@ export default function ReviewsView({
     </div>
   );
 }
+
+export default ReviewsView;
 
 
 

@@ -5,6 +5,7 @@ import {
   listCategories,
   updateCategory,
 } from '../services/categories.service';
+import { listEntityChangeLogs } from '../services/change-logs.service';
 import { normalizeText } from '../utils/text';
 
 export async function getCategories(_req: Request, res: Response) {
@@ -33,6 +34,16 @@ export async function createCategoryHandler(req: Request, res: Response) {
     res.status(201).json({ ok: true, category });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create category';
+    res.status(500).json({ ok: false, message });
+  }
+}
+
+export async function getCategoryChangeLogs(req: Request, res: Response) {
+  try {
+    const logs = await listEntityChangeLogs('category', req.params.id);
+    res.json({ ok: true, logs });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch category change logs';
     res.status(500).json({ ok: false, message });
   }
 }

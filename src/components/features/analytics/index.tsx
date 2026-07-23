@@ -1,14 +1,12 @@
-﻿import { useState } from 'react';
-import { 
-  BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, 
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+import {
+  BarChart, Bar, AreaChart, Area, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { 
-  DollarSign, ShoppingBag, Users, Percent, ArrowUpRight, ArrowDownRight, 
-  Sparkles, CheckCircle2, TrendingUp, AlertTriangle, ShieldCheck, Heart, 
-  Play, Plus, Tag, MessageSquare, ExternalLink, ShieldAlert
+import {
+  BarChart3, ShoppingBag, Users, ArrowUpRight, ArrowDownRight, AlertTriangle
 } from 'lucide-react';
 import { Product, Order, Customer, SupportTicket } from '../../../types';
+import { formatVnd } from '../../../lib/currency';
 
 interface AnalyticsViewProps {
   products: Product[];
@@ -19,7 +17,6 @@ interface AnalyticsViewProps {
   onOpenAddProduct: () => void;
 }
 
-const formatCurrency = (value: number) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 const formatPercent = (value: number) => Number.isFinite(value) ? value.toFixed(1) : '0.0';
 const isSameDay = (date: Date, target: Date) =>
   date.getFullYear() === target.getFullYear() &&
@@ -33,16 +30,13 @@ const getValidDate = (value?: string) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-export default function AnalyticsView({
+export function AnalyticsView({
   products,
   orders,
   customers,
-  tickets,
   onNavigate,
   onOpenAddProduct
 }: AnalyticsViewProps) {
-  const [activeTab, setActiveTab] = useState<'core' | 'ai'>('core');
-
   const COLORS = ['#2563EB', '#16A34A', '#F59E0B', '#DC2626'];
 
 
@@ -91,65 +85,30 @@ export default function AnalyticsView({
     { name: 'Đơn hàng đã tạo', value: normalizedOrders.length },
     { name: 'Đơn hoàn tất', value: deliveredOrders.length }
   ];
-  const intentCounts = tickets.reduce<Record<string, number>>((acc, ticket) => {
-    const intent = ticket.intent || 'Khác';
-    acc[intent] = (acc[intent] || 0) + 1;
-    return acc;
-  }, {});
-  const actualAiIntentDistribution = Object.entries(intentCounts).map(([name, count]) => ({
-    name,
-    value: tickets.length > 0 ? Number(((count / tickets.length) * 100).toFixed(1)) : 0,
-  }));
-  const sentimentBuckets = tickets.reduce<Record<string, { positive: number; neutral: number; negative: number }>>((acc, ticket) => {
-    const updatedAt = getValidDate(ticket.updatedAt);
-    const label = updatedAt ? updatedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Không rõ';
-    acc[label] = acc[label] || { positive: 0, neutral: 0, negative: 0 };
-    acc[label][ticket.sentiment] += 1;
-    return acc;
-  }, {});
-  const actualAiSentimentTrend = Object.entries(sentimentBuckets).map(([name, value]) => ({ name, ...value }));
-  const aiHandledTickets = tickets.filter(ticket => ticket.assignedToAI);
-  const solvedTickets = tickets.filter(ticket => ticket.status === 'solved');
-  const slaOkTickets = tickets.filter(ticket => ticket.slaMinutesRemaining >= 0);
-  const avgSentimentScore = tickets.length > 0
-    ? tickets.reduce((total, ticket) => total + ticket.sentimentScore, 0) / tickets.length
-    : 0;
-  const csatScore = ((avgSentimentScore + 1) / 2) * 5;
   const actualLowStock = [...products].filter(p => p.inventory < 10).sort((a, b) => a.inventory - b.inventory).slice(0, 3);
   const actualVipCustomers = [...customers].filter(c => c.tier === 'VIP' || c.ordersCount > 0).sort((a, b) => (b.ordersCount || 0) - (a.ordersCount || 0)).slice(0, 3);
   const actualLatestOrders = [...orders].sort((a, b) => (getValidDate(b.date)?.getTime() || 0) - (getValidDate(a.date)?.getTime() || 0)).slice(0, 3);
 
   return (
     <div className="space-y-6">
-      {/* Tab select strip */}
-      <div className="flex border-b border-[#E2E8F0] bg-white px-6 py-1 rounded-xl shadow-xs shrink-0">
-        <button
-          onClick={() => setActiveTab('core')}
-          className={`py-3 text-sm font-bold border-b-2 px-1 mr-6 transition-all ${
-            activeTab === 'core' ? 'border-[#2563EB] text-[#2563EB]' : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
-          }`}
-        >
-          Tổng quan
-        </button>
-        <button
-          onClick={() => setActiveTab('ai')}
-          className={`py-3 text-sm font-bold border-b-2 px-1 flex items-center gap-1.5 transition-all ${
-            activeTab === 'ai' ? 'border-[#2563EB] text-[#2563EB]' : 'border-transparent text-[#64748B] hover:text-[#0F172A]'
-          }`}
-        >
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          AI vận hành
-        </button>
+      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-5 rounded-2xl border border-blue-100/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-blue-600" />
+            <h2 className="text-base font-extrabold text-slate-900">Thống Kê & Báo Cáo Tổng Quan</h2>
+          </div>
+          <p className="text-xs text-slate-500 leading-relaxed">Theo dõi doanh thu, đơn hàng, khách hàng, tồn kho và hiệu suất bán hàng trong hệ thống.</p>
+        </div>
       </div>
-      {activeTab === 'core' && (
-        <div className="space-y-6">
+
+      <div className="space-y-6">
           {/* KPI Card grid */}
           <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
             {/* CARD 1 */}
             <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-semibold text-[#64748B] uppercase block">Doanh thu hôm nay</span>
-                <span className="text-xl font-bold text-[#0F172A] mt-1.5 block">{formatCurrency(revenueToday)}</span>
+                <span className="text-xl font-bold text-[#0F172A] mt-1.5 block">{formatVnd(revenueToday)}</span>
               </div>
               <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold mt-2">
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -161,7 +120,7 @@ export default function AnalyticsView({
             <div className="bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm flex flex-col justify-between">
               <div>
                 <span className="text-[10px] font-semibold text-[#64748B] uppercase block">Doanh thu tháng này</span>
-                <span className="text-xl font-bold text-[#0F172A] mt-1.5 block">{formatCurrency(monthlyRevenue)}</span>
+                <span className="text-xl font-bold text-[#0F172A] mt-1.5 block">{formatVnd(monthlyRevenue)}</span>
               </div>
               <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold mt-2">
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -229,7 +188,7 @@ export default function AnalyticsView({
                   <p className="text-xs text-[#64748B] mt-0.5">Thống kê giá trị giao dịch ròng trong ngày</p>
                 </div>
                 <div className="flex items-center gap-4 text-xs font-bold text-[#64748B]">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#2563EB]"></span> Doanh thu gộp ($)</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#2563EB]"></span> Doanh thu gộp (đ)</span>
                   <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-300"></span> Số lượng đơn</span>
                 </div>
               </div>
@@ -346,106 +305,16 @@ export default function AnalyticsView({
                       <span className="font-bold text-slate-800 block">{o.id} - {o.customerName}</span>
                       <span className="text-[10px] text-slate-400 block mt-0.5">{new Date(o.date).toLocaleDateString()}</span>
                     </div>
-                    <span className="font-extrabold text-emerald-600">${o.total.toFixed(2)}</span>
+                    <span className="font-extrabold text-emerald-600">{formatVnd(o.total)}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {activeTab === 'ai' && (
-        <div className="space-y-6">
-          {/* AI KPI summary widgets */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-xl border border-[#E2E8F0] shadow-sm space-y-2">
-              <span className="text-[10px] font-semibold text-[#64748B] uppercase block">Tự động xử lý bằng AI</span>
-              <span className="text-2xl font-bold text-amber-600 block">{formatPercent(tickets.length > 0 ? (aiHandledTickets.length / tickets.length) * 100 : 0)}%</span>
-              <p className="text-[11px] text-[#64748B]">Tỷ lệ yêu cầu được trợ lý AI giải quyết triệt để.</p>
-            </div>
-
-            <div className="bg-white p-5 rounded-xl border border-[#E2E8F0] shadow-sm space-y-2">
-              <span className="text-[10px] font-semibold text-[#64748B] uppercase block">Tỷ lệ đạt chuẩn SLA</span>
-              <span className="text-2xl font-bold text-[#2563EB] block">{formatPercent(tickets.length > 0 ? (slaOkTickets.length / tickets.length) * 100 : 0)}%</span>
-              <p className="text-[11px] text-[#64748B]">Tỷ lệ phản hồi khách hàng dưới 30 phút.</p>
-            </div>
-
-            <div className="bg-white p-5 rounded-xl border border-[#E2E8F0] shadow-sm space-y-2">
-              <span className="text-[10px] font-semibold text-[#64748B] uppercase block">Tiết kiệm chi phí</span>
-              <span className="text-2xl font-bold text-emerald-600 block">{formatCurrency(solvedTickets.length * 3)}</span>
-              <p className="text-[11px] text-[#64748B]">Ước tính tiết kiệm trung bình 3$ cho mỗi ca xử lý thành công.</p>
-            </div>
-
-            <div className="bg-white p-5 rounded-xl border border-[#E2E8F0] shadow-sm space-y-2">
-              <span className="text-[10px] font-semibold text-[#64748B] uppercase block">Điểm hài lòng CSAT</span>
-              <span className="text-2xl font-bold text-amber-500 block">{csatScore.toFixed(2)} / 5</span>
-              <p className="text-[11px] text-[#64748B]">Điểm đánh giá trung bình từ phía khách hàng.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Pie Chart: Intent Breakdown */}
-            <div className="bg-white p-5 rounded-xl border border-[#E2E8F0] shadow-sm space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-[#0F172A]">Phân loại ý định khách hàng</h3>
-                <p className="text-xs text-[#64748B] mt-0.5">Các nhóm yêu cầu được ghi nhận từ ticket hỗ trợ</p>
-              </div>
-              <div className="h-[220px] w-full flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={actualAiIntentDistribution}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {actualAiIntentDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-500">
-                {actualAiIntentDistribution.map((entry, idx) => (
-                  <span key={idx} className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
-                    {entry.name} ({entry.value}%)
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Area Chart: Hourly Sentiment Trends */}
-            <div className="bg-white p-5 rounded-xl border border-[#E2E8F0] shadow-sm lg:col-span-2 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-[#0F172A]">Phân tích cảm xúc hỗ trợ</h3>
-                  <p className="text-xs text-[#64748B] mt-0.5">Theo dõi sắc thái hội thoại theo thời gian cập nhật ticket</p>
-                </div>
-              </div>
-              <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={actualAiSentimentTrend} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                    <XAxis dataKey="name" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="positive" name="Tích cực" stackId="1" stroke="#16A34A" fill="#D1FAE5" />
-                    <Area type="monotone" dataKey="negative" name="Tiêu cực" stackId="1" stroke="#DC2626" fill="#FEE2E2" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
+
+export default AnalyticsView;
 

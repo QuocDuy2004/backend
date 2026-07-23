@@ -1,4 +1,4 @@
-import { Product, Order, Customer, SupportTicket, MarketingCampaign, KPICards, InventoryHistory, ProductReview } from '../types';
+﻿import { Product, Order, Customer, SupportTicket, MarketingCampaign, KPICards, InventoryHistory, ProductReview } from '../types';
 
 export const mockKPIData: KPICards = {
   revenueToday: 14250.00,
@@ -19,7 +19,7 @@ export const mockProducts: Product[] = [
     price: 49.00,
     cost: 14.50,
     inventory: 142,
-    warehouseStock: { 'W1-West': 90, 'W2-East': 52 },
+    warehouseStock: { MAIN: 142 },
     rating: 4.8,
     sales: 1240,
     status: 'active',
@@ -42,7 +42,7 @@ export const mockProducts: Product[] = [
     price: 189.00,
     cost: 58.00,
     inventory: 8,
-    warehouseStock: { 'W1-West': 3, 'W2-East': 5 },
+    warehouseStock: { MAIN: 8 },
     rating: 4.6,
     sales: 840,
     status: 'active',
@@ -64,7 +64,7 @@ export const mockProducts: Product[] = [
     price: 75.00,
     cost: 22.00,
     inventory: 230,
-    warehouseStock: { 'W1-West': 150, 'W2-East': 80 },
+    warehouseStock: { MAIN: 230 },
     rating: 4.9,
     sales: 3100,
     status: 'active',
@@ -86,7 +86,7 @@ export const mockProducts: Product[] = [
     price: 35.00,
     cost: 9.20,
     inventory: 4,
-    warehouseStock: { 'W1-West': 1, 'W2-East': 3 },
+    warehouseStock: { MAIN: 4 },
     rating: 4.5,
     sales: 2430,
     status: 'active',
@@ -108,7 +108,7 @@ export const mockProducts: Product[] = [
     price: 299.00,
     cost: 110.00,
     inventory: 45,
-    warehouseStock: { 'W1-West': 25, 'W2-East': 20 },
+    warehouseStock: { MAIN: 45 },
     rating: 4.7,
     sales: 420,
     status: 'active',
@@ -130,7 +130,7 @@ export const mockProducts: Product[] = [
     price: 120.00,
     cost: 38.00,
     inventory: 85,
-    warehouseStock: { 'W1-West': 40, 'W2-East': 45 },
+    warehouseStock: { MAIN: 85 },
     rating: 4.8,
     sales: 910,
     status: 'active',
@@ -151,7 +151,7 @@ export const mockInventoryHistory: InventoryHistory[] = [
     date: '2026-06-24T09:12:00Z',
     change: -5,
     type: 'sale',
-    warehouse: 'W1-West',
+    warehouse: 'MAIN',
     notes: 'Order #ORD-1002 Fulfillment'
   },
   {
@@ -159,7 +159,7 @@ export const mockInventoryHistory: InventoryHistory[] = [
     date: '2026-06-23T14:20:00Z',
     change: 100,
     type: 'restock',
-    warehouse: 'W1-West',
+    warehouse: 'MAIN',
     notes: 'Inbound shipment receipt and QA clearance'
   },
   {
@@ -167,7 +167,7 @@ export const mockInventoryHistory: InventoryHistory[] = [
     date: '2026-06-24T18:45:00Z',
     change: -2,
     type: 'sale',
-    warehouse: 'W2-East',
+    warehouse: 'MAIN',
     notes: 'Order #ORD-1001 Fulfillment'
   },
   {
@@ -175,7 +175,7 @@ export const mockInventoryHistory: InventoryHistory[] = [
     date: '2026-06-22T11:05:00Z',
     change: 50,
     type: 'transfer',
-    warehouse: 'W2-East',
+    warehouse: 'MAIN',
     notes: 'Inter-facility transfer from West depot'
   }
 ];

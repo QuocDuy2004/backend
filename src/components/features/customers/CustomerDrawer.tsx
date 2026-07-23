@@ -1,8 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Sparkles, TrendingUp, AlertTriangle, ShieldCheck, Mail, Phone, Calendar, User, ShoppingBag, MessageSquare, Edit3, Trash2, Check, RefreshCw, ChevronDown } from 'lucide-react';
+import { X, TrendingUp, AlertTriangle, Mail, Phone, Calendar, User, MessageSquare, Edit3, Trash2, Check, History, MapPin } from 'lucide-react';
 import { Customer, SupportTicket } from '../../../types';
 import CustomSelect from '../../shared/ui/CustomSelect';
+import { usersApi, type EntityChangeLog } from '../../../lib/api';
 
 interface CustomerDrawerProps {
   customer: Customer | null;
@@ -14,15 +15,19 @@ interface CustomerDrawerProps {
 }
 
 export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onSave, onDelete }: CustomerDrawerProps) {
-  const [activeTab, setActiveTab] = useState<'profile' | 'journey' | 'ai'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'history'>('profile');
 
   // Edit states
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState('');
   const [editedEmail, setEditedEmail] = useState('');
   const [editedPhone, setEditedPhone] = useState('');
-  const [editedTier, setEditedTier] = useState<'VIP' | 'Regular' | 'New' | 'Loyal'>('Regular');
-  const [editedChurnRisk, setEditedChurnRisk] = useState<'low' | 'medium' | 'high'>('low');
+  const [editedAddress, setEditedAddress] = useState('');
+  const [editedRole, setEditedRole] = useState<Customer['role']>('member');
+  const [editedStatus, setEditedStatus] = useState<NonNullable<Customer['status']>>('active');
+  const [changeLogs, setChangeLogs] = useState<EntityChangeLog[]>([]);
+  const [changeLogsLoading, setChangeLogsLoading] = useState(false);
+  const [changeLogsError, setChangeLogsError] = useState('');
   
   // Delete confirm state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -32,26 +37,52 @@ export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onS
       setEditedName(customer.name);
       setEditedEmail(customer.email);
       setEditedPhone(customer.phone || '');
-      setEditedTier(customer.tier);
-      setEditedChurnRisk(customer.churnRisk);
+      setEditedAddress(customer.address || '');
+      setEditedRole(customer.role || 'member');
+      setEditedStatus(customer.status || 'active');
       setIsEditing(false);
       setShowDeleteConfirm(false);
     }
   }, [customer]);
+
+  useEffect(() => {
+    if (!customer || activeTab !== 'history') return;
+
+    setChangeLogsLoading(true);
+    setChangeLogsError('');
+    usersApi.changeLogs(customer.id)
+      .then((data) => setChangeLogs(data.logs || []))
+      .catch((error: any) => setChangeLogsError(error.message || 'Không thể tải nhật ký thay đổi.'))
+      .finally(() => setChangeLogsLoading(false));
+  }, [activeTab, customer?.id, customer?.updatedAt]);
 
   if (!isOpen || !customer) return null;
 
   // Filter support tickets related to this customer email
   const customerTickets = tickets.filter(t => t.customerEmail.toLowerCase() === customer.email.toLowerCase());
 
-  const riskLabel = {
-    low: { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: ShieldCheck, text: 'Rủi ro rời bỏ Thấp' },
-    medium: { bg: 'bg-amber-50 text-amber-700 border-amber-200', icon: AlertTriangle, text: 'Rủi ro rời bỏ Trung bình' },
-    high: { bg: 'bg-rose-50 text-rose-700 border-rose-200', icon: AlertTriangle, text: 'Rủi ro rời bỏ Cao' }
+  const actionLabels: Record<EntityChangeLog['action'], string> = {
+    create: 'Tạo mới',
+    update: 'Cập nhật',
+    delete: 'Xóa',
   };
-
-  const currentRisk = riskLabel[isEditing ? editedChurnRisk : customer.churnRisk] || riskLabel.low;
-  const RiskIcon = currentRisk.icon;
+  const roleLabels: Record<Customer['role'], string> = {
+    admin: 'Quản trị viên',
+    seller: 'Người bán',
+    member: 'Khách hàng',
+  };
+  const statusLabels: Record<NonNullable<Customer['status']>, string> = {
+    active: 'Hoạt động',
+    blocked: 'Bị khóa',
+    deleted: 'Đã xóa',
+  };
+  const joinedDate = customer.joinedDate || customer.createdAt || '';
+  const updatedDate = customer.updatedAt || '';
+  const formatDateTime = (value?: string) => {
+    if (!value) return '---';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN', { hour12: false });
+  };
 
   const handleSave = () => {
     if (!editedName.trim()) {
@@ -69,8 +100,9 @@ export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onS
         name: editedName.trim(),
         email: editedEmail.trim(),
         phone: editedPhone.trim(),
-        tier: editedTier,
-        churnRisk: editedChurnRisk,
+        address: editedAddress.trim(),
+        role: editedRole,
+        status: editedStatus,
       });
     }
     setIsEditing(false);
@@ -104,10 +136,10 @@ export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onS
             )}
             <div className="min-w-0">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <h2 className="max-w-[120px] truncate text-base font-bold text-slate-900 min-[390px]:max-w-[160px] sm:max-w-xs">{isEditing ? editedName : customer.name}</h2>
-                <span className="px-2 py-0.5 rounded-sm bg-blue-50 text-blue-700 text-[10px] font-bold uppercase">{isEditing ? editedTier : customer.tier} Tier</span>
+                <h2 className="max-w-[120px] truncate text-base font-medium normal-case text-slate-900 min-[390px]:max-w-[160px] sm:max-w-xs">{isEditing ? editedName : customer.name}</h2>
+                <span className="px-2 py-0.5 rounded-sm bg-blue-50 text-blue-700 text-[10px] font-medium normal-case">{roleLabels[isEditing ? editedRole : customer.role] || customer.role}</span>
               </div>
-              <span className="block max-w-[140px] truncate text-xs font-mono text-slate-400 min-[390px]:max-w-[190px] sm:max-w-xs">{isEditing ? editedEmail : customer.email}</span>
+              <span className="block max-w-[140px] truncate text-xs font-normal normal-case text-slate-400 min-[390px]:max-w-[190px] sm:max-w-xs">{isEditing ? editedEmail : customer.email}</span>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
@@ -162,24 +194,16 @@ export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onS
               activeTab === 'profile' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            Hồ sơ khách hàng 360°
+            Thông tin khách hàng
           </button>
           <button
-            onClick={() => { setActiveTab('journey'); setIsEditing(false); }}
-            className={`mr-5 shrink-0 border-b-2 px-1 py-3 text-sm font-medium transition-all sm:mr-6 ${
-              activeTab === 'journey' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'
+            onClick={() => { setActiveTab('history'); setIsEditing(false); }}
+            className={`mr-5 flex shrink-0 items-center gap-1.5 border-b-2 px-1 py-3 text-sm font-medium transition-all sm:mr-6 ${
+              activeTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
-            Hành trình trải nghiệm
-          </button>
-          <button
-            onClick={() => { setActiveTab('ai'); setIsEditing(false); }}
-            className={`flex shrink-0 items-center gap-1.5 border-b-2 px-1 py-3 text-sm font-medium transition-all ${
-              activeTab === 'ai' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            Dự báo thông minh AI
+            <History className="w-4 h-4" />
+            Nhật ký thay đổi ({changeLogs.length})
           </button>
         </div>
 
@@ -267,41 +291,48 @@ export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onS
                   <div>
                     <h3 className="text-xs font-bold text-slate-700 uppercase mb-3 flex items-center gap-1.5">
                       <TrendingUp className="w-4 h-4 text-indigo-500" />
-                      Thông số hoạt động & Phân loại
+                      Tài khoản & trạng thái
                     </h3>
                     
                     <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                       <div>
-                        <label className="block text-[10px] font-extrabold text-slate-400 uppercase mb-1">Phân khúc (Tier)</label>
+                        <label className="block text-[10px] font-extrabold text-slate-400 uppercase mb-1">Vai trò</label>
                         <CustomSelect
-                          value={editedTier}
-                          onChange={(val) => setEditedTier(val as any)}
+                          value={editedRole}
+                          onChange={(val) => setEditedRole(val as Customer['role'])}
                           options={[
-                            { value: 'VIP', label: 'VIP' },
-                            { value: 'Loyal', label: 'Loyal (Thành viên Thân thiết)' },
-                            { value: 'Regular', label: 'Regular (Thành viên Thường)' },
-                            { value: 'New', label: 'New (Khách hàng Mới)' }
+                            { value: 'member', label: 'Khách hàng' },
+                            { value: 'seller', label: 'Người bán' },
+                            { value: 'admin', label: 'Quản trị viên' }
                           ]}
                           className="w-full"
                         />
                       </div>
 
+                      <div>
+                        <label className="block text-[10px] font-extrabold text-slate-400 uppercase mb-1">Trạng thái</label>
+                        <CustomSelect
+                          value={editedStatus}
+                          onChange={(val) => setEditedStatus(val as NonNullable<Customer['status']>)}
+                          options={[
+                            { value: 'active', label: 'Hoạt động' },
+                            { value: 'blocked', label: 'Bị khóa' },
+                            { value: 'deleted', label: 'Đã xóa' }
+                          ]}
+                          className="w-full"
+                        />
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 mt-3.5">
-                      <div>
-                        <label className="block text-[10px] font-extrabold text-slate-400 uppercase mb-1">Rủi ro rời bỏ</label>
-                        <CustomSelect
-                          value={editedChurnRisk}
-                          onChange={(val) => setEditedChurnRisk(val as any)}
-                          options={[
-                            { value: 'low', label: 'Thấp (Low Churn Risk)' },
-                            { value: 'medium', label: 'Trung bình (Medium Risk)' },
-                            { value: 'high', label: 'Cao (Critical Churn Risk)' }
-                          ]}
-                          className="w-full"
-                        />
-                      </div>
+                    <div className="mt-3.5">
+                      <label className="block text-[10px] font-extrabold text-slate-400 uppercase mb-1">Địa chỉ</label>
+                      <textarea
+                        value={editedAddress}
+                        onChange={(e) => setEditedAddress(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white shadow-xs"
+                        placeholder="Nhập địa chỉ khách hàng..."
+                      />
                     </div>
 
                   </div>
@@ -310,10 +341,18 @@ export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onS
             ) : (
               <div className="space-y-6">
                 {/* Summary Stats Grid */}
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
                     <span className="block text-[9px] font-bold text-slate-400 uppercase">Tổng số đơn hàng</span>
-                    <span className="text-base font-extrabold text-slate-800 mt-1 block">{customer.ordersCount} đơn</span>
+                    <span className="text-base font-medium normal-case text-slate-800 mt-1 block">{customer.ordersCount} đơn</span>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+                    <span className="block text-[9px] font-bold text-slate-400 uppercase">Vai trò</span>
+                    <span className="text-base font-medium normal-case text-slate-800 mt-1 block">{roleLabels[customer.role] || customer.role}</span>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+                    <span className="block text-[9px] font-bold text-slate-400 uppercase">Trạng thái</span>
+                    <span className="text-base font-medium normal-case text-slate-800 mt-1 block">{statusLabels[customer.status || 'active']}</span>
                   </div>
                 </div>
 
@@ -323,19 +362,45 @@ export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onS
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/80 space-y-3.5 text-xs text-slate-600">
                     <div className="flex items-center gap-2.5">
                       <User className="w-4 h-4 text-slate-400" />
-                      <span className="font-semibold text-slate-800">{customer.name}</span>
+                      <span className="font-medium normal-case text-slate-800">{customer.name}</span>
                     </div>
                     <div className="flex items-center gap-2.5">
                       <Mail className="w-4 h-4 text-slate-400" />
-                      <span className="font-medium font-mono">{customer.email}</span>
+                      <span className="font-normal normal-case">{customer.email}</span>
                     </div>
                     <div className="flex items-center gap-2.5">
                       <Phone className="w-4 h-4 text-slate-400" />
                       <span>{customer.phone || 'Chưa ghi nhận số điện thoại'}</span>
                     </div>
+                    <div className="flex items-start gap-2.5">
+                      <MapPin className="mt-0.5 w-4 h-4 text-slate-400" />
+                      <span>{customer.address || 'Chưa ghi nhận địa chỉ'}</span>
+                    </div>
                     <div className="flex items-center gap-2.5 border-t border-slate-200/50 pt-2.5">
                       <Calendar className="w-4 h-4 text-slate-400" />
-                      <span>Ngày tham gia hệ thống: {customer.joinedDate}</span>
+                      <span>Ngày tham gia hệ thống: {formatDateTime(joinedDate)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase">Thông tin tài khoản</h3>
+                  <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100/80 bg-slate-50 p-4 text-xs sm:grid-cols-2">
+                    <div className="rounded-lg bg-white p-3 border border-slate-100">
+                      <span className="block text-[10px] font-bold uppercase text-slate-400">Mã khách hàng</span>
+                      <span className="mt-1 block font-mono font-semibold text-slate-800">{customer.id}</span>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-100">
+                      <span className="block text-[10px] font-bold uppercase text-slate-400">Tên đăng nhập</span>
+                      <span className="mt-1 block font-semibold text-slate-800">{customer.username || '---'}</span>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-100">
+                      <span className="block text-[10px] font-bold uppercase text-slate-400">Ngày tạo</span>
+                      <span className="mt-1 block font-mono font-semibold text-slate-800">{formatDateTime(customer.createdAt)}</span>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-100">
+                      <span className="block text-[10px] font-bold uppercase text-slate-400">Cập nhật cuối</span>
+                      <span className="mt-1 block font-mono font-semibold text-slate-800">{formatDateTime(updatedDate)}</span>
                     </div>
                   </div>
                 </div>
@@ -349,14 +414,14 @@ export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onS
                         <div className="flex items-center gap-2.5">
                           <MessageSquare className="w-4.5 h-4.5 text-slate-400" />
                           <div>
-                            <div className="font-bold text-slate-800">{t.id} - {t.intent}</div>
+                            <div className="font-medium normal-case text-slate-800">{t.id} - {t.intent}</div>
                             <p className="text-slate-400 truncate max-w-xs mt-0.5">{t.lastMessage}</p>
                           </div>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium normal-case ${
                           t.status === 'solved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}>
-                          {t.status.toUpperCase()}
+                          {t.status === 'solved' ? 'Đã xử lý' : t.status === 'pending' ? 'Đang chờ' : 'Đang mở'}
                         </span>
                       </div>
                     ))}
@@ -370,96 +435,58 @@ export default function CustomerDrawer({ customer, isOpen, onClose, tickets, onS
               </div>
             ))}
 
-          {activeTab === 'journey' && (
+          {activeTab === 'history' && (
             <div className="space-y-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase">Lịch sử tương tác và gắn kết</h3>
-              <div className="relative border-l-2 border-slate-100 pl-4 ml-2.5 space-y-6">
-                {customer.journey?.map((j, i) => (
-                  <div key={i} className="relative text-xs">
-                    <span className="absolute -left-[24.5px] top-1 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-white ring-4 ring-blue-50"></span>
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-800">{j.event}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{j.date}</span>
+              <div className="flex items-center gap-2 text-slate-600 mb-2">
+                <History className="w-5 h-5 text-blue-600" />
+                <h4 className="text-sm font-bold text-slate-800">Nhật ký thay đổi</h4>
+              </div>
+
+              <div className="relative border-l-2 border-slate-100 pl-4 ml-2 space-y-6">
+                {changeLogsLoading && (
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-semibold text-slate-400">
+                    Đang tải nhật ký thay đổi...
+                  </div>
+                )}
+
+                {changeLogsError && (
+                  <div className="rounded-lg border border-rose-100 bg-rose-50 p-3 text-xs font-semibold text-rose-600">
+                    {changeLogsError}
+                  </div>
+                )}
+
+                {!changeLogsLoading && !changeLogsError && changeLogs.map((log) => (
+                  <div key={log.id} className="relative">
+                    <span className={`absolute -left-[25px] top-1 w-3 h-3 rounded-full border-2 border-white ring-4 ${
+                      log.action === 'create'
+                        ? 'bg-emerald-500 ring-emerald-50'
+                        : log.action === 'delete'
+                        ? 'bg-rose-500 ring-rose-50'
+                        : 'bg-blue-500 ring-blue-50'
+                    }`}></span>
+                    <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
+                      <div className="flex items-center justify-between gap-3 text-xs font-medium normal-case text-slate-800">
+                        <span>{actionLabels[log.action]} khách hàng</span>
+                        <span className="text-slate-400 font-normal">{formatDateTime(log.createdAt)}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">{log.summary}</p>
+                      <span className="block text-[10px] text-slate-400 font-semibold mt-2 uppercase tracking-wide">Người sửa đổi: {log.actorName || 'Quản trị viên'}</span>
                     </div>
-                    <span className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 text-slate-500 font-medium rounded-sm text-[10px]">
-                      {j.channel}
-                    </span>
-                    <p className="text-slate-500 mt-1 leading-relaxed">{j.details}</p>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
 
-          {activeTab === 'ai' && (
-            <div className="space-y-5">
-              {/* Risk scores */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-slate-700 font-semibold text-xs uppercase tracking-wide">
-                    <TrendingUp className="w-4 h-4 text-slate-400" />
-                    Chỉ số rủi ro khách hàng rời bỏ
-                  </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 border ${currentRisk.bg}`}>
-                    <RiskIcon className="w-3.5 h-3.5" />
-                    {currentRisk.text}
-                  </span>
-                </div>
-
-                {/* Score bar */}
-                <div>
-                  <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-                    <span>Khả năng tái mua hàng</span>
-                    <span className="font-bold text-slate-800">{(customer.repurchaseProbability * 100).toFixed(0)}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"
-                      style={{ width: `${customer.repurchaseProbability * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recommenders */}
-              <div className="p-4 rounded-xl bg-amber-50/40 border border-amber-100/80 space-y-3.5">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500" />
-                  <h4 className="text-sm font-bold text-amber-950">Gợi ý bán thêm cá nhân hóa bằng AI</h4>
-                </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Mô hình AI dự đoán sản phẩm khách hàng quan tâm dựa trên danh mục yêu thích (<strong>{customer.preferredCategories?.join(', ')}</strong>):
-                </p>
-
-                <div className="space-y-2">
-                  {customer.upsellOpportunities?.map((item, idx) => (
-                    <div key={idx} className="bg-white p-3 rounded-lg border border-slate-100 text-xs font-bold text-slate-700 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ShoppingBag className="w-4 h-4 text-slate-400" />
-                        {item}
-                      </div>
-                      <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">AI đề xuất</span>
+                {!changeLogsLoading && !changeLogsError && changeLogs.length === 0 && (
+                  <div className="relative">
+                    <span className="absolute -left-[25px] top-1 w-3 h-3 rounded-full bg-slate-300 border-2 border-white ring-4 ring-slate-50"></span>
+                    <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100">
+                      <p className="text-xs text-slate-500">Chưa có nhật ký thay đổi trong database.</p>
                     </div>
-                  ))}
-                  {(!customer.upsellOpportunities || customer.upsellOpportunities.length === 0) && (
-                    <p className="text-xs text-slate-400 italic">Chưa có đề xuất bán thêm nào.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Category tags */}
-              <div className="space-y-2.5">
-                <h4 className="text-xs font-bold text-slate-400 uppercase">Danh mục sản phẩm ưa thích</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {customer.preferredCategories?.map((cat, i) => (
-                    <span key={i} className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold">
-                      {cat}
-                    </span>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
+
         </div>
 
         {/* Footer */}

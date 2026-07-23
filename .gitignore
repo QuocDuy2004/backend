@@ -2,8 +2,13 @@ node_modules/
 build/
 dist/
 coverage/
+__pycache__/
+*.pyc
+.claude/
 .DS_Store
 *.log
+grok_logs.csv
+reg-log-*.json
 .env*
 !.env.example
 facebook-secrets.local.json

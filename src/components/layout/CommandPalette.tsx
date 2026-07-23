@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { Search, Command, ShoppingBag, Users, AlertTriangle, MessageSquare, Tag, BarChart3, Settings, Star, PanelsTopLeft } from 'lucide-react';
+import { formatVnd } from '../../lib/currency';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -194,7 +195,7 @@ export default function CommandPalette({
                               <span className="text-xs text-slate-400 ml-2 font-mono">{p.sku}</span>
                             </div>
                           </div>
-                          <span className="text-xs font-mono font-medium text-slate-500">${p.price.toFixed(2)}</span>
+                          <span className="text-xs font-mono font-medium text-slate-500">{formatVnd(p.price)}</span>
                         </button>
                       );
                     })}
@@ -228,7 +229,7 @@ export default function CommandPalette({
                               <span className="text-slate-500 ml-2">{o.customerName}</span>
                             </div>
                           </div>
-                          <span className="text-xs font-semibold text-emerald-600">${o.total.toFixed(2)}</span>
+                          <span className="text-xs font-semibold text-emerald-600">{formatVnd(o.total)}</span>
                         </button>
                       );
                     })}

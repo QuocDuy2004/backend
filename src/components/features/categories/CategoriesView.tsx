@@ -6,6 +6,7 @@ import CategoryDrawer from './CategoryDrawer';
 import { 
   Archive, Boxes, CheckCircle2, FolderKanban, Plus, Search, Tag, Trash2
 } from 'lucide-react';
+import { categoriesApi } from '../../../lib/api';
 
 interface CategoriesViewProps {
   categories: Category[];
@@ -50,17 +51,11 @@ export default function CategoriesView({
     }
 
     try {
-      const response = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data = await categoriesApi.create({
           name: trimmed,
           image: newCatImage || undefined,
           status: newCatStatus,
-        }),
       });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.message || 'Failed to create category');
 
       setCategories(prev => [...prev, data.category]);
       setNewCatName('');
@@ -79,13 +74,7 @@ export default function CategoriesView({
     if (!category) return;
 
     try {
-      const response = await fetch(`/api/categories/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...category, status: nextStatus }),
-      });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.message || 'Failed to update category');
+      const data = await categoriesApi.update(id, { ...category, status: nextStatus });
 
       setCategories(prev => prev.map(cat => cat.id === id ? data.category : cat));
     } catch (error: any) {
@@ -98,16 +87,9 @@ export default function CategoriesView({
 
     try {
       const updatedCategories = await Promise.all(
-        selectedCategories.map(async (category) => {
-          const response = await fetch(`/api/categories/${category.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...category, status }),
-          });
-          const data = await response.json();
-          if (!data.ok) throw new Error(data.message || 'Failed to update category');
-          return data.category as Category;
-        })
+        selectedCategories.map(async (category) =>
+          (await categoriesApi.update(category.id, { ...category, status })).category as Category
+        )
       );
 
       setCategories(prev => prev.map(cat => updatedCategories.find(updated => updated.id === cat.id) || cat));
@@ -126,15 +108,10 @@ export default function CategoriesView({
     const now = new Date().toISOString();
 
     try {
-      const response = await fetch(`/api/categories/${updatedCategory.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...updatedCategory, name: trimmedName }),
-      });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.message || 'Failed to update category');
+      const data = await categoriesApi.update(updatedCategory.id, { ...updatedCategory, name: trimmedName });
 
       setCategories(prev => prev.map(cat => cat.id === updatedCategory.id ? data.category : cat));
+      setActiveCategory(data.category);
 
       if (trimmedName !== oldCategory.name) {
         setProducts(prevProducts =>
@@ -164,13 +141,7 @@ export default function CategoriesView({
     if (!deletingCat) return;
 
     try {
-      const response = await fetch(`/api/categories/${deletingCat.id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transferTarget }),
-      });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.message || 'Failed to delete category');
+      await categoriesApi.remove(deletingCat.id, transferTarget);
 
       setCategories(prev => prev.filter(c => c.id !== deletingCat.id));
 
@@ -199,15 +170,7 @@ export default function CategoriesView({
 
     try {
       await Promise.all(
-        selectedCategories.map(async (category) => {
-          const response = await fetch(`/api/categories/${category.id}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transferTarget: 'Uncategorized' }),
-          });
-          const data = await response.json();
-          if (!data.ok) throw new Error(data.message || 'Failed to delete category');
-        })
+        selectedCategories.map((category) => categoriesApi.remove(category.id, 'Uncategorized'))
       );
 
       const selectedNames = new Set(selectedCategories.map(category => category.name));

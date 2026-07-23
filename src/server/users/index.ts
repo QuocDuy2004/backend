@@ -1,14 +1,35 @@
 import type { Request, Response } from 'express';
 import {
+  addProductToUserFavorites,
+  addProductToUserCart,
   createUser,
   deleteUser,
   findUserByEmail,
+  getUserFavorites,
+  getUserCart,
   listUsers,
   publicUser,
+  removeProductFromUserFavorites,
+  removeProductFromUserCart,
   toUserRole,
   updateUser,
 } from '../services/users.service';
+import { listEntityChangeLogs } from '../services/change-logs.service';
 import { normalizeText } from '../utils/text';
+
+function normalizeQuantity(value: unknown) {
+  const quantity = Number(value);
+  return Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1;
+}
+
+function productIdsFromItems(items: Array<string | { productId?: unknown }>) {
+  return items
+    .map((item) => {
+      if (item && typeof item === 'object') return normalizeText(item.productId);
+      return normalizeText(item);
+    })
+    .filter(Boolean);
+}
 
 export async function getUserByEmail(req: Request, res: Response) {
   const email = normalizeText(req.params.email).toLowerCase();
@@ -96,6 +117,16 @@ export async function updateUserHandler(req: Request, res: Response) {
   }
 }
 
+export async function getUserChangeLogs(req: Request, res: Response) {
+  try {
+    const logs = await listEntityChangeLogs('customer', req.params.id);
+    res.json({ ok: true, logs });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch customer change logs';
+    res.status(500).json({ ok: false, message });
+  }
+}
+
 export async function deleteUserHandler(req: Request, res: Response) {
   try {
     await deleteUser(req.params.id);
@@ -103,5 +134,119 @@ export async function deleteUserHandler(req: Request, res: Response) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete user';
     res.status(500).json({ ok: false, message });
+  }
+}
+
+export async function getUserCartHandler(req: Request, res: Response) {
+  const userId = normalizeText(req.params.id);
+
+  if (!userId) {
+    return res.status(400).json({ ok: false, message: 'userId is required.' });
+  }
+
+  try {
+    const cart = await getUserCart(userId);
+    return res.json({ ok: true, cart, productIds: productIdsFromItems(cart) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch user cart';
+    const statusCode = error instanceof Error && 'statusCode' in error ? Number(error.statusCode) : 500;
+    return res.status(statusCode || 500).json({ ok: false, message });
+  }
+}
+
+export async function addUserCartProductHandler(req: Request, res: Response) {
+  const userId = normalizeText(req.params.id);
+  const productId = normalizeText(req.params.productId || req.body.productId);
+
+  if (!userId || !productId) {
+    return res.status(400).json({ ok: false, message: 'userId and productId are required.' });
+  }
+
+  try {
+    const user = await addProductToUserCart(
+      userId,
+      productId,
+      normalizeQuantity(req.body.quantity ?? req.query.quantity)
+    );
+    return res.json({ ok: true, user });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to add product to cart';
+    const statusCode = error instanceof Error && 'statusCode' in error ? Number(error.statusCode) : 500;
+    return res.status(statusCode || 500).json({ ok: false, message });
+  }
+}
+
+export async function removeUserCartProductHandler(req: Request, res: Response) {
+  const userId = normalizeText(req.params.id);
+  const productId = normalizeText(req.params.productId || req.body.productId);
+
+  if (!userId || !productId) {
+    return res.status(400).json({ ok: false, message: 'userId and productId are required.' });
+  }
+
+  try {
+    const user = await removeProductFromUserCart(userId, productId);
+    return res.json({ ok: true, user });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to remove product from cart';
+    const statusCode = error instanceof Error && 'statusCode' in error ? Number(error.statusCode) : 500;
+    return res.status(statusCode || 500).json({ ok: false, message });
+  }
+}
+
+export async function getUserFavoritesHandler(req: Request, res: Response) {
+  const userId = normalizeText(req.params.id);
+
+  if (!userId) {
+    return res.status(400).json({ ok: false, message: 'userId is required.' });
+  }
+
+  try {
+    const productIds = await getUserFavorites(userId);
+    return res.json({ ok: true, favorites: productIds, productIds: productIdsFromItems(productIds) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch user favorites';
+    const statusCode = error instanceof Error && 'statusCode' in error ? Number(error.statusCode) : 500;
+    return res.status(statusCode || 500).json({ ok: false, message });
+  }
+}
+
+export async function addUserFavoriteProductHandler(req: Request, res: Response) {
+  const userId = normalizeText(req.params.id);
+  const productId = normalizeText(req.params.productId || req.body.productId);
+
+  if (!userId || !productId) {
+    return res.status(400).json({ ok: false, message: 'userId and productId are required.' });
+  }
+
+  try {
+    const favorites = await addProductToUserFavorites(
+      userId,
+      productId,
+      normalizeQuantity(req.body.quantity ?? req.query.quantity)
+    );
+    return res.json({ ok: true, favorites, productIds: productIdsFromItems(favorites) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to add product to favorites';
+    const statusCode = error instanceof Error && 'statusCode' in error ? Number(error.statusCode) : 500;
+    return res.status(statusCode || 500).json({ ok: false, message });
+  }
+}
+
+export async function removeUserFavoriteProductHandler(req: Request, res: Response) {
+  const userId = normalizeText(req.params.id);
+  const productId = normalizeText(req.params.productId || req.body.productId);
+
+  if (!userId || !productId) {
+    return res.status(400).json({ ok: false, message: 'userId and productId are required.' });
+  }
+
+  try {
+    const favorites = await removeProductFromUserFavorites(userId, productId);
+    return res.json({ ok: true, favorites, productIds: productIdsFromItems(favorites) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to remove product from favorites';
+    const statusCode = error instanceof Error && 'statusCode' in error ? Number(error.statusCode) : 500;
+    return res.status(statusCode || 500).json({ ok: false, message });
   }
 }

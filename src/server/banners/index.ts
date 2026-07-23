@@ -6,6 +6,7 @@ import {
   toggleBannerStatus,
   updateBanner,
 } from '../services/banners.service';
+import { listEntityChangeLogs } from '../services/change-logs.service';
 import { normalizeText } from '../utils/text';
 
 function requiredText(value: unknown) {
@@ -50,6 +51,16 @@ export async function updateBannerHandler(req: Request, res: Response) {
     res.json({ ok: true, banner });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update banner';
+    res.status(500).json({ ok: false, message });
+  }
+}
+
+export async function getBannerChangeLogs(req: Request, res: Response) {
+  try {
+    const logs = await listEntityChangeLogs('banner', req.params.id);
+    res.json({ ok: true, logs });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch banner change logs';
     res.status(500).json({ ok: false, message });
   }
 }

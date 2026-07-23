@@ -1,9 +1,14 @@
 import express from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import net from 'net';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
+import { ensureDatabaseSchema } from '../../database/ensure-database';
 import { env } from './config/env';
+import { bankTransferWebhookHandler } from './payments';
 import { apiRouter } from './router';
+import { ensureEntityChangeLogsTable } from './services/change-logs.service';
+import { ensureSupportTables } from './services/support.service';
 
 export const app = express();
 
@@ -35,7 +40,20 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+app.use((error: any, _req: Request, res: Response, next: NextFunction) => {
+  if (error?.type === 'entity.too.large') {
+    res.status(413).json({
+      ok: false,
+      message: 'Dung lượng dữ liệu gửi lên quá lớn. Vui lòng dùng ảnh tối đa 5MB.',
+    });
+    return;
+  }
+
+  next(error);
+});
+app.post('/webhook/sieuthicode', bankTransferWebhookHandler);
 app.use('/api', apiRouter);
 
 function isPortAvailable(port: number) {
@@ -79,6 +97,10 @@ async function mountFrontend(hmrPort: number) {
 }
 
 export async function startServer() {
+  await ensureDatabaseSchema();
+  await ensureEntityChangeLogsTable();
+  await ensureSupportTables();
+
   const appPort = await findAvailablePort(env.port);
   const requestedHmrPort = Number(process.env.HMR_PORT || appPort + 1000);
   const hmrPort = env.nodeEnv === 'production' ? requestedHmrPort : await findAvailablePort(requestedHmrPort);

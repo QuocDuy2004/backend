@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, CheckCircle2, ShieldAlert, AlertTriangle, HelpCircle, Package, Truck, Clock, RefreshCw, FileText, ChevronDown } from 'lucide-react';
 import { Order } from '../../../types';
 import CustomSelect from '../../shared/ui/CustomSelect';
+import { formatVnd } from '../../../lib/currency';
 
 interface OrderDrawerProps {
   order: Order | null;
@@ -11,7 +12,7 @@ interface OrderDrawerProps {
   onUpdateOrder: (updatedOrder: Order) => void;
 }
 
-export default function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: OrderDrawerProps) {
+export function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: OrderDrawerProps) {
   const [internalNotes, setInternalNotes] = useState('');
   const [shippingStatus, setShippingStatus] = useState<'pending' | 'processing' | 'shipping' | 'delivered' | 'refunded' | 'cancelled'>('pending');
 
@@ -88,7 +89,7 @@ export default function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: O
                 {fraudStyle.text} ({order.fraudRiskScore}%)
               </span>
             </div>
-            <h2 className="text-lg font-bold text-slate-900 mt-0.5">Hồ Sơ Chi Tiết Đơn Hàng</h2>
+            <h2 className="text-lg font-bold text-slate-900 mt-0.5">HỒ SƠ CHI TIẾT ĐƠN HÀNG</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <X className="w-5 h-5" />
@@ -123,11 +124,11 @@ export default function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: O
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/80 space-y-2.5">
                 <div>
                   <span className="block text-[10px] font-semibold text-slate-400 uppercase">Họ và tên</span>
-                  <span className="text-sm font-semibold text-slate-800">{order.customerName}</span>
+                  <span className="text-sm font-medium normal-case text-slate-800">{order.customerName}</span>
                 </div>
                 <div>
                   <span className="block text-[10px] font-semibold text-slate-400 uppercase">Địa chỉ Email</span>
-                  <span className="text-sm font-medium text-slate-600 break-all">{order.customerEmail}</span>
+                  <span className="text-sm font-normal normal-case text-slate-600 break-all">{order.customerEmail}</span>
                 </div>
               </div>
             </div>
@@ -135,9 +136,9 @@ export default function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: O
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Địa điểm nhận hàng</h3>
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/80 space-y-1 text-sm text-slate-700">
-                <p className="font-medium text-slate-800">{order.shippingAddress.street}</p>
-                <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}</p>
-                <p className="font-semibold text-slate-400 uppercase text-[10px] mt-1">{order.shippingAddress.country}</p>
+                <p className="font-normal normal-case text-slate-800">{order.shippingAddress.street}</p>
+                <p className="normal-case">{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}</p>
+                <p className="font-normal normal-case text-slate-400 text-[10px] mt-1">{order.shippingAddress.country}</p>
               </div>
             </div>
 
@@ -147,7 +148,7 @@ export default function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: O
                 {order.timeline.map((evt, idx) => (
                   <div key={idx} className="relative text-xs">
                     <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-slate-300 border-2 border-white ring-4 ring-slate-100"></span>
-                    <div className="font-bold text-slate-700">{evt.title}</div>
+                    <div className="font-medium normal-case text-slate-700">{evt.title}</div>
                     <div className="text-slate-400 font-mono text-[10px] mt-0.5">{new Date(evt.date).toLocaleString()}</div>
                     <p className="text-slate-500 mt-0.5 leading-relaxed">{evt.description}</p>
                   </div>
@@ -167,11 +168,11 @@ export default function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: O
                       <Package className="w-5 h-5 text-slate-500" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-bold text-slate-800 truncate">{item.productName}</h4>
-                      <span className="block text-[10px] font-mono text-slate-400 uppercase mt-0.5">{item.sku}</span>
-                      <div className="flex items-center justify-between text-xs font-medium text-slate-500 mt-1.5">
+                      <h4 className="text-xs font-medium normal-case text-slate-800 truncate">{item.productName}</h4>
+                      <span className="block text-[10px] font-mono font-normal normal-case text-slate-400 mt-0.5">{item.sku}</span>
+                      <div className="flex items-center justify-between text-xs font-normal text-slate-500 mt-1.5">
                         <span>Số lượng: {item.quantity}</span>
-                        <span className="text-slate-700">${item.price.toFixed(2)}</span>
+                        <span className="text-slate-700">{formatVnd(item.price)}</span>
                       </div>
                     </div>
                   </div>
@@ -184,19 +185,19 @@ export default function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: O
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2 text-xs">
                 <div className="flex justify-between text-slate-500">
                   <span>Tạm tính</span>
-                  <span>${order.subtotal.toFixed(2)}</span>
+                  <span>{formatVnd(order.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-slate-500">
                   <span>Thuế (8%)</span>
-                  <span>${order.tax.toFixed(2)}</span>
+                  <span>{formatVnd(order.tax)}</span>
                 </div>
                 <div className="flex justify-between text-slate-500">
                   <span>Phí giao hàng</span>
-                  <span>${order.shipping.toFixed(2)}</span>
+                  <span>{formatVnd(order.shipping)}</span>
                 </div>
-                <div className="border-t border-slate-200/60 pt-2 flex justify-between text-sm font-extrabold text-slate-900">
+                <div className="border-t border-slate-200/60 pt-2 flex justify-between text-sm font-medium text-slate-900">
                   <span>Tổng tiền thanh toán</span>
-                  <span>${order.total.toFixed(2)}</span>
+                  <span>{formatVnd(order.total)}</span>
                 </div>
               </div>
             </div>
@@ -221,14 +222,14 @@ export default function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: O
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100/80 space-y-3 text-xs">
                 <div>
                   <span className="block text-[10px] font-semibold text-slate-400 uppercase">Kênh thanh toán</span>
-                  <span className="text-sm font-semibold text-slate-800">{order.paymentMethod}</span>
+                  <span className="text-sm font-medium normal-case text-slate-800">{order.paymentMethod}</span>
                 </div>
                 <div>
                   <span className="block text-[10px] font-semibold text-slate-400 uppercase">Trạng thái thanh toán</span>
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold mt-1 uppercase ${
+                  <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium mt-1 normal-case ${
                     order.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                   }`}>
-                    {order.paymentStatus === 'paid' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN'}
+                    {order.paymentStatus === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
                   </span>
                 </div>
                 <div>
@@ -286,5 +287,7 @@ export default function OrderDrawer({ order, isOpen, onClose, onUpdateOrder }: O
     document.body
   );
 }
+
+export default OrderDrawer;
 
 

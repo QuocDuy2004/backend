@@ -2,6 +2,7 @@
 import { AlertTriangle, Boxes, CheckCircle2, Download, Package, Plus, Search, Tag, Trash2 } from 'lucide-react';
 import type { Category, Product } from '../../../types';
 import { CustomSelect } from '../../shared';
+import { formatVnd } from '../../../lib/currency';
 
 type ProductsPageProps = {
   categories: Category[];
@@ -51,7 +52,7 @@ export function ProductsPage({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Package className="w-5 h-5 text-blue-600" />
-                  <h2 className="text-base font-extrabold text-slate-900">Quản Lý Sản Phẩm & Tồn Kho</h2>
+                  <h2 className="text-base font-extrabold text-slate-900">Quản Lý Sản Phẩm</h2>
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   Theo dõi danh sách sản phẩm, trạng thái kinh doanh, hình ảnh, giá bán và tồn kho theo từng kho trong hệ thống.
@@ -110,7 +111,7 @@ export function ProductsPage({
                   onClick={handleExportExcel}
                   className="p-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm"
                 >
-                  <Download className="w-3.5 h-3.5" /> Xuất danh sách
+                  <Download className="w-3.5 h-3.5" /> Xuất Excel
                 </button>
 
                 <button
@@ -207,10 +208,10 @@ export function ProductsPage({
                           </div>
                         </td>
                         <td className="px-5 py-3 text-slate-500 font-semibold">{prod.category}</td>
-                        <td className="px-5 py-3 text-right font-mono font-bold text-slate-800">${prod.price.toFixed(2)}</td>
+                        <td className="px-5 py-3 text-right font-mono font-bold text-slate-800">{formatVnd(prod.price)}</td>
                         <td className="px-5 py-3 text-right">
                           <div className="font-semibold text-slate-800">{prod.inventory} sản phẩm</div>
-                          <div className="text-[9px] text-slate-400 font-mono mt-0.5">Kho 1: {prod.warehouseStock?.['W1-West'] || 0} / Kho 2: {prod.warehouseStock?.['W2-East'] || 0}</div>
+                          <div className="text-[9px] text-slate-400 font-mono mt-0.5">Kho chính: {prod.warehouseStock?.MAIN ?? prod.inventory ?? 0}</div>
                         </td>
                         <td className="px-5 py-3 text-slate-500 font-mono text-[10px]">
                           {prod.createdAt ? new Date(prod.createdAt).toLocaleString('vi-VN', { hour12: false }) : new Date(prod.updatedAt || Date.now()).toLocaleString('vi-VN', { hour12: false })}
@@ -328,12 +329,12 @@ export function ProductsPage({
                       </div>
                       <div className="text-right">
                         <span className="text-slate-400 block text-[10px] uppercase font-semibold">Giá bán</span>
-                        <span className="font-mono font-extrabold text-[#2563EB] text-sm">${prod.price.toFixed(2)}</span>
+                        <span className="font-mono font-extrabold text-[#2563EB] text-sm">{formatVnd(prod.price)}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px] uppercase font-semibold">Tồn kho</span>
                         <span className="font-semibold text-slate-800">{prod.inventory} SP</span>
-                        <span className="text-[9px] text-slate-400 block font-mono">W1: {prod.warehouseStock?.['W1-West'] || 0} | W2: {prod.warehouseStock?.['W2-East'] || 0}</span>
+                        <span className="text-[9px] text-slate-400 block font-mono">Kho chính: {prod.warehouseStock?.MAIN ?? prod.inventory ?? 0}</span>
                       </div>
                       <div className="text-right flex flex-col justify-between items-end">
                         <span className="text-slate-400 block text-[10px] uppercase font-semibold">Trạng thái</span>
@@ -361,5 +362,6 @@ export function ProductsPage({
   );
 }
 
+export default ProductsPage;
 
 

@@ -5,6 +5,7 @@ import {
   listNotifications,
   listUserNotifications,
   markUserNotificationRead,
+  resolveUserIdByEmail,
 } from '../services/notifications.service';
 import { normalizeText } from '../utils/text';
 
@@ -21,8 +22,10 @@ function normalizeTargetParams(value: unknown) {
 export async function getNotifications(req: Request, res: Response) {
   try {
     const userId = normalizeText(req.query.userId);
-    const notifications = userId
-      ? await listUserNotifications(userId)
+    const email = normalizeText(req.query.email);
+    const resolvedUserId = userId || (email ? await resolveUserIdByEmail(email) : '');
+    const notifications = resolvedUserId
+      ? await listUserNotifications(resolvedUserId)
       : await listNotifications();
 
     res.json({ ok: true, notifications });

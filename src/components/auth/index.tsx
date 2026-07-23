@@ -1,5 +1,6 @@
 ﻿import { FormEvent, useState } from 'react';
 import { LockKeyhole, LogIn, Mail, ShieldCheck, UserRound } from 'lucide-react';
+import { authApi } from '../../lib/api';
 
 type AuthRole = 'admin' | 'seller';
 
@@ -13,7 +14,7 @@ export interface AuthUser {
   image?: string | null;
   cart?: string[];
   role: 'member' | 'seller' | 'admin';
-  status: string;
+  status?: string;
 }
 
 export interface AuthSession {
@@ -28,7 +29,7 @@ interface LoginPageProps {
   requiredRole: AuthRole;
 }
 
-export default function LoginPage({ onLogin, requiredRole }: LoginPageProps) {
+export function LoginPage({ onLogin, requiredRole }: LoginPageProps) {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,19 +44,7 @@ export default function LoginPage({ onLogin, requiredRole }: LoginPageProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ usernameOrEmail, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'Dang nhap that bai.');
-      }
+      const data = await authApi.login({ usernameOrEmail, password });
 
       if (data.user?.role !== requiredRole) {
         throw new Error(`Tai khoan nay khong co quyen ${portalLabel}.`);
@@ -185,4 +174,6 @@ export default function LoginPage({ onLogin, requiredRole }: LoginPageProps) {
     </main>
   );
 }
+
+export default LoginPage;
 

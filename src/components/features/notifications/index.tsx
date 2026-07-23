@@ -15,6 +15,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import { notificationsApi } from '../../../lib/api';
 import type { AppNotification, Customer } from '../../../types';
 
 type NoticeTab = 'sent' | 'inbox';
@@ -53,7 +54,7 @@ function getNoticeMeta(type?: string) {
   return noticeTypes.find((item) => item.value === type) || noticeTypes[0];
 }
 
-export default function NotificationsView({ users, currentUserId }: NotificationsViewProps) {
+export function NotificationsView({ users, currentUserId }: NotificationsViewProps) {
   const [tab, setTab] = useState<NoticeTab>('sent');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [inbox, setInbox] = useState<AppNotification[]>([]);
@@ -86,18 +87,14 @@ export default function NotificationsView({ users, currentUserId }: Notification
     setIsLoading(true);
     setError('');
     try {
-      const [sentResponse, inboxResponse] = await Promise.all([
-        fetch('/api/notifications'),
-        currentUserId ? fetch(`/api/notifications?userId=${encodeURIComponent(currentUserId)}`) : Promise.resolve(null),
+      const [sentData, inboxData] = await Promise.all([
+        notificationsApi.list(),
+        currentUserId ? notificationsApi.list(currentUserId) : Promise.resolve(null),
       ]);
 
-      const sentData = await sentResponse.json();
-      if (!sentData.ok) throw new Error(sentData.message || 'Failed to load notifications');
       setNotifications(sentData.notifications || []);
 
-      if (inboxResponse) {
-        const inboxData = await inboxResponse.json();
-        if (!inboxData.ok) throw new Error(inboxData.message || 'Failed to load inbox');
+      if (inboxData) {
         setInbox(inboxData.notifications || []);
       }
     } catch (err: any) {
@@ -127,10 +124,7 @@ export default function NotificationsView({ users, currentUserId }: Notification
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/notifications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await notificationsApi.create({
           title,
           message,
           type,
@@ -138,10 +132,7 @@ export default function NotificationsView({ users, currentUserId }: Notification
           targetPath,
           targetParams: categorySlug.trim() ? { categorySlug: categorySlug.trim() } : {},
           userIds: audience === 'user' ? [selectedUserId] : [],
-        }),
       });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.message || 'Failed to create notification');
 
       setTitle('');
       setMessage('');
@@ -158,9 +149,7 @@ export default function NotificationsView({ users, currentUserId }: Notification
 
   const handleArchive = async (id: string) => {
     try {
-      const response = await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.message || 'Failed to archive notification');
+      await notificationsApi.archive(id);
       await loadNotifications();
     } catch (err: any) {
       setError(err.message || 'Failed to archive notification');
@@ -169,13 +158,7 @@ export default function NotificationsView({ users, currentUserId }: Notification
 
   const handleMarkRead = async (id: string, isRead: boolean) => {
     try {
-      const response = await fetch(`/api/notifications/${id}/read`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUserId, isRead }),
-      });
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.message || 'Failed to update notification');
+      await notificationsApi.markRead(id, { userId: currentUserId, isRead });
       await loadNotifications();
     } catch (err: any) {
       setError(err.message || 'Failed to update notification');
@@ -183,16 +166,15 @@ export default function NotificationsView({ users, currentUserId }: Notification
   };
 
   return (
-    <section className="space-y-5 font-sans">
-      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-semibold uppercase text-blue-700">
-            <Bell className="h-3.5 w-3.5" />
-            Trung tâm thông báo
+    <section className="space-y-5 font-sans animate-fade-in">
+      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-5 rounded-2xl border border-blue-100/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Bell className="w-5 h-5 text-blue-600" />
+            <h2 className="text-base font-extrabold text-slate-900">Quản Lý Thông Báo</h2>
           </div>
-          <h1 className="text-2xl font-black text-slate-950 md:text-3xl">Quản lý thông báo</h1>
-          <p className="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-500">
-            Tạo thông báo cho toàn bộ user hoặc gửi riêng từng tài khoản. Mỗi user có trạng thái đã đọc riêng tại bảng user_notifications.
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Tạo, gửi và theo dõi thông báo đến toàn bộ khách hàng hoặc từng tài khoản cụ thể.
           </p>
         </div>
 
@@ -374,6 +356,8 @@ export default function NotificationsView({ users, currentUserId }: Notification
     </section>
   );
 }
+
+export default NotificationsView;
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

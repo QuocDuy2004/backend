@@ -20,6 +20,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { settingsApi } from '../../lib/api';
 
 interface SidebarProps {
   currentSection: string;
@@ -36,14 +37,14 @@ interface SidebarProps {
 
 const menuItems = [
   { id: 'dashboard', label: 'Trang tổng quan', icon: BarChart3 },
-  { id: 'products', label: 'Sản phẩm & Tồn kho', icon: Box },
+  { id: 'products', label: 'Quản lý sản phẩm', icon: Box },
   { id: 'categories', label: 'Danh mục sản phẩm', icon: LayoutGrid },
   { id: 'orders', label: 'Quản lý đơn hàng', icon: Tag },
   { id: 'customers', label: 'Quản lý khách hàng', icon: Users },
   { id: 'reviews', label: 'Đánh giá khách hàng', icon: Star },
-  { id: 'banners', label: 'Quản lý banner', icon: PanelsTopLeft },
+  { id: 'banners', label: 'Quản lý quảng cáo', icon: PanelsTopLeft },
   { id: 'marketing', label: 'Chiến dịch Marketing', icon: Megaphone },
-  { id: 'support', label: 'Hỗ trợ khách hàng AI', icon: MessageSquare, badge: 'AI' },
+  { id: 'support', label: 'Tin nhắn khách hàng', icon: MessageSquare, badge: 'AI' },
   { id: 'settings', label: 'Cấu hình hệ thống', icon: Settings },
 ];
 
@@ -83,11 +84,7 @@ export default function Sidebar({
 
     const loadStoreName = async () => {
       try {
-        const response = await fetch('/api/settings?includeInactive=true');
-        const contentType = response.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) return;
-
-        const data = await response.json();
+        const data = await settingsApi.list(true);
         const contact = (data.settings || []).find((item: any) => item.settingKey === 'contact_information');
         const nextStoreName = contact?.value?.storeName;
 
@@ -125,7 +122,7 @@ export default function Sidebar({
               isActive && (mobile || !isCollapsed) ? 'rounded-l-none border-l-4 border-blue-600 pl-2' : '',
             ].join(' ')}
           >
-            <span className="flex min-w-0 items-center gap-3">
+            <span className="flex items-center min-w-0 gap-3">
               <Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-500'}`} />
               {(mobile || !isCollapsed) && <span className="truncate">{item.label}</span>}
             </span>
@@ -142,23 +139,23 @@ export default function Sidebar({
 
   return (
     <>
-      <div className="sticky top-0 z-30 flex min-h-16 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 md:hidden">
-        <button onClick={() => setMobileOpen(true)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600">
-          <Menu className="h-5 w-5" />
+      <div className="sticky top-0 z-30 flex items-center gap-2 px-3 py-2 bg-white border-b min-h-16 shrink-0 border-slate-200 md:hidden">
+        <button onClick={() => setMobileOpen(true)} className="flex items-center justify-center w-10 h-10 border rounded-lg shrink-0 border-slate-200 text-slate-600">
+          <Menu className="w-5 h-5" />
         </button>
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-            <Omega className="h-5 w-5" />
+        <div className="flex items-center flex-1 min-w-0 gap-2">
+          <div className="flex items-center justify-center text-white bg-blue-600 rounded-lg shadow-sm h-9 w-9 shrink-0">
+            <Omega className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-extrabold leading-5 text-slate-950">{storeName}</p>
+            <p className="text-sm font-extrabold leading-5 truncate text-slate-950">{storeName}</p>
             <p className="text-[9px] font-black uppercase text-slate-400">Bản điều khiển</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <button
             onClick={onOpenCommandPalette}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm"
+            className="flex items-center justify-center bg-white border rounded-lg shadow-sm h-9 w-9 border-slate-200 text-slate-500"
             aria-label="Tìm kiếm"
           >
             <Search className="h-4.5 w-4.5" />
@@ -169,7 +166,7 @@ export default function Sidebar({
             aria-label="Thông báo"
           >
             <Bell className="h-4.5 w-4.5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-rose-600" />
+            <span className="absolute w-2 h-2 border-2 border-white rounded-full right-2 top-2 bg-rose-600" />
           </button>
           <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-slate-100 text-[10px] font-black text-slate-700 shadow-sm">
             {initial}
@@ -181,37 +178,37 @@ export default function Sidebar({
         <div className="fixed inset-0 z-50 md:hidden">
           <button className="absolute inset-0 bg-slate-950/35" onClick={() => setMobileOpen(false)} aria-label="Close menu" />
           <aside className="relative flex h-full w-[280px] flex-col bg-white p-5 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-                  <Omega className="h-5 w-5" />
+                <div className="flex items-center justify-center w-10 h-10 text-white bg-blue-600 rounded-lg">
+                  <Omega className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="text-sm font-extrabold text-slate-950">{storeName}</p>
                   <p className="text-[9px] font-black uppercase text-slate-400">Bản điều khiển</p>
                 </div>
               </div>
-              <button onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
-                <X className="h-5 w-5" />
+              <button onClick={() => setMobileOpen(false)} className="p-2 rounded-lg text-slate-500 hover:bg-slate-100">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <button
               onClick={onOpenCommandPalette}
-              className="mb-6 flex h-9 items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-500"
+              className="flex items-center justify-between px-3 mb-6 text-xs font-semibold border rounded-lg h-9 border-slate-200 bg-slate-50 text-slate-500"
             >
               <span className="flex items-center gap-2">
-                <Command className="h-4 w-4" />
+                <Command className="w-4 h-4" />
                 Tìm lệnh nhanh
               </span>
               <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px]">⌘K</kbd>
             </button>
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <NavList mobile />
             </div>
 
-            <div className="border-t border-slate-100 pt-4">
+            <div className="pt-4 border-t border-slate-100">
               <AccountFooter initial={initial} userEmail={userEmail} userName={userName} onLogout={onLogout} />
             </div>
           </aside>
@@ -226,19 +223,19 @@ export default function Sidebar({
       >
         <div className="space-y-7">
           <div className={`flex border-b border-slate-100 pb-4 ${isCollapsed ? 'flex-col items-center gap-3' : 'items-center justify-between'}`}>
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-                <Omega className="h-5 w-5" />
+            <div className="flex items-center min-w-0 gap-3">
+              <div className="flex items-center justify-center text-white bg-blue-600 rounded-lg shadow-sm h-9 w-9 shrink-0">
+                <Omega className="w-5 h-5" />
               </div>
               {!isCollapsed && (
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-extrabold text-slate-950">{storeName}</p>
+                  <p className="text-sm font-extrabold truncate text-slate-950">{storeName}</p>
                   <p className="truncate text-[9px] font-black uppercase text-slate-400">Bản điều khiển</p>
                 </div>
               )}
             </div>
             <button onClick={onToggleCollapse} className="rounded-md p-1.5 text-slate-300 hover:bg-slate-50 hover:text-slate-600">
-              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
           </div>
 
@@ -248,8 +245,8 @@ export default function Sidebar({
               isCollapsed ? 'justify-center px-0' : 'justify-between px-3'
             }`}
           >
-            <span className="flex min-w-0 items-center gap-2">
-              <Command className="h-4 w-4 shrink-0" />
+            <span className="flex items-center min-w-0 gap-2">
+              <Command className="w-4 h-4 shrink-0" />
               {!isCollapsed && <span className="truncate">Tìm lệnh nhanh</span>}
             </span>
             {!isCollapsed && <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px]">⌘K</kbd>}
@@ -258,9 +255,9 @@ export default function Sidebar({
           <NavList />
         </div>
 
-        <div className="space-y-4 border-t border-slate-100 pt-4">
+        <div className="pt-4 space-y-4 border-t border-slate-100">
           {!isCollapsed && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="p-4 border rounded-lg border-slate-200 bg-slate-50">
               <p className="mb-2 text-[10px] font-black uppercase text-slate-500">Trạng thái sử dụng AI</p>
               <div className="mb-2 h-1.5 rounded-full bg-slate-200">
                 <div className="h-1.5 w-[72%] rounded-full bg-blue-600" />
@@ -296,17 +293,17 @@ function AccountFooter({
 }) {
   return (
     <div className={`flex items-center gap-3 ${compact ? 'justify-center' : ''}`}>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-extrabold text-blue-700">
+      <div className="flex items-center justify-center text-sm font-extrabold text-blue-700 bg-blue-100 rounded-full h-9 w-9 shrink-0">
         {initial}
       </div>
       {!compact && (
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-extrabold text-slate-950">{userName}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-extrabold truncate text-slate-950">{userName}</p>
           <p className="truncate text-[10px] font-mono text-slate-400">{userEmail}</p>
         </div>
       )}
       <button onClick={onLogout} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
-        <LogOut className="h-4 w-4" />
+        <LogOut className="w-4 h-4" />
       </button>
     </div>
   );

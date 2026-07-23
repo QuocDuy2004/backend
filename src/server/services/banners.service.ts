@@ -1,6 +1,7 @@
 import { pool } from '../../lib/mysql';
 import type { ResultSetHeader } from 'mysql2';
 import { parseJsonField } from '../utils/json';
+import { recordEntityChangeLog } from './change-logs.service';
 
 type BannerStatus = 'active' | 'inactive' | 'scheduled';
 
@@ -139,7 +140,19 @@ export async function createBanner(payload: any) {
     ]
   );
 
-  return findBannerById(String(result.insertId));
+  const created = await findBannerById(String(result.insertId));
+  if (created) {
+    await recordEntityChangeLog({
+      entityType: 'banner',
+      entityId: created.id,
+      entityName: created.title,
+      action: 'create',
+      summary: `Tạo banner ${created.title}`,
+      changes: { after: created },
+    });
+  }
+
+  return created;
 }
 
 export async function updateBanner(id: string, payload: any) {
@@ -180,7 +193,22 @@ export async function updateBanner(id: string, payload: any) {
     ]
   );
 
-  return findBannerById(id);
+  const updated = await findBannerById(id);
+  if (updated) {
+    await recordEntityChangeLog({
+      entityType: 'banner',
+      entityId: id,
+      entityName: updated.title,
+      action: 'update',
+      summary: `Cập nhật banner ${updated.title}`,
+      changes: {
+        before: existing,
+        after: updated,
+      },
+    });
+  }
+
+  return updated;
 }
 
 export async function toggleBannerStatus(id: string) {
@@ -190,9 +218,36 @@ export async function toggleBannerStatus(id: string) {
   const status = banner.status === 'active' ? 'inactive' : 'active';
   await pool.query('UPDATE banners SET status = ?, updated_at = NOW() WHERE id = ?', [status, id]);
 
-  return findBannerById(id);
+  const updated = await findBannerById(id);
+  if (updated) {
+    await recordEntityChangeLog({
+      entityType: 'banner',
+      entityId: id,
+      entityName: updated.title,
+      action: 'update',
+      summary: `Đổi trạng thái banner ${updated.title} thành ${updated.status}`,
+      changes: {
+        before: banner,
+        after: updated,
+      },
+    });
+  }
+
+  return updated;
 }
 
 export async function deleteBanner(id: string) {
+  const existing = await findBannerById(id);
   await pool.query('DELETE FROM banners WHERE id = ?', [id]);
+
+  if (existing) {
+    await recordEntityChangeLog({
+      entityType: 'banner',
+      entityId: id,
+      entityName: existing.title,
+      action: 'delete',
+      summary: `Xóa banner ${existing.title}`,
+      changes: { before: existing },
+    });
+  }
 }

@@ -40,6 +40,18 @@ export async function listSettings(includeInactive = false) {
   return rows.map(publicSetting);
 }
 
+export async function findSettingByKey(settingKey: string) {
+  const [rows] = await pool.query<any[]>(
+    `SELECT id, setting_key, setting_group, title, value, status, created_at, updated_at
+     FROM settings
+     WHERE setting_key = ?
+     LIMIT 1`,
+    [settingKey]
+  );
+
+  return rows[0] ? publicSetting(rows[0]) : null;
+}
+
 export async function upsertSetting(payload: {
   settingKey: string;
   settingGroup: string;

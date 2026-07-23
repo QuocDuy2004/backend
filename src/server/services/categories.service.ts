@@ -1,6 +1,7 @@
 import { pool } from '../../lib/mysql';
 import type { ResultSetHeader } from 'mysql2';
 import { slugify } from '../utils/slug';
+import { recordEntityChangeLog } from './change-logs.service';
 
 type CategoryStatus = 'active' | 'inactive';
 
@@ -59,7 +60,19 @@ export async function createCategory(payload: {
     [payload.name, slug, payload.image || null, payload.status || 'active']
   );
 
-  return findCategoryById(String(result.insertId));
+  const category = await findCategoryById(String(result.insertId));
+  if (category) {
+    await recordEntityChangeLog({
+      entityType: 'category',
+      entityId: category.id,
+      entityName: category.name,
+      action: 'create',
+      summary: `Tạo danh mục ${category.name}`,
+      changes: { after: category },
+    });
+  }
+
+  return category;
 }
 
 export async function updateCategory(
@@ -74,8 +87,12 @@ export async function updateCategory(
   try {
     await connection.beginTransaction();
 
-    const [oldRows] = await connection.query<any[]>('SELECT name FROM categories WHERE id = ? LIMIT 1', [id]);
-    const oldName = oldRows[0]?.name;
+    const [oldRows] = await connection.query<any[]>(
+      'SELECT id, name, slug, image, status FROM categories WHERE id = ? LIMIT 1',
+      [id]
+    );
+    const oldCategory = oldRows[0];
+    const oldName = oldCategory?.name;
     const slug = slugify(payload.name);
 
     await connection.query(
@@ -88,6 +105,27 @@ export async function updateCategory(
     if (oldName && oldName !== payload.name) {
       await connection.query('UPDATE products SET updated_at = NOW() WHERE category_id = ?', [id]);
     }
+
+    await recordEntityChangeLog(
+      {
+        entityType: 'category',
+        entityId: id,
+        entityName: payload.name,
+        action: 'update',
+        summary: `Cập nhật danh mục ${payload.name}`,
+        changes: {
+          before: oldCategory || null,
+          after: {
+            id,
+            name: payload.name,
+            slug,
+            image: payload.image || null,
+            status: payload.status || 'active',
+          },
+        },
+      },
+      connection
+    );
 
     await connection.commit();
   } catch (error) {
@@ -105,6 +143,12 @@ export async function deleteCategory(id: string, transferTarget?: string) {
   try {
     await connection.beginTransaction();
 
+    const [categoryRows] = await connection.query<any[]>(
+      'SELECT id, name, slug, image, status FROM categories WHERE id = ? LIMIT 1',
+      [id]
+    );
+    const deletedCategory = categoryRows[0] || null;
+
     let targetCategoryId: string | null = null;
     if (transferTarget && transferTarget !== 'Uncategorized') {
       const [targetRows] = await connection.query<any[]>(
@@ -119,6 +163,22 @@ export async function deleteCategory(id: string, transferTarget?: string) {
       id,
     ]);
     await connection.query('DELETE FROM categories WHERE id = ?', [id]);
+
+    await recordEntityChangeLog(
+      {
+        entityType: 'category',
+        entityId: id,
+        entityName: deletedCategory?.name || null,
+        action: 'delete',
+        summary: `Xóa danh mục ${deletedCategory?.name || id}`,
+        changes: {
+          before: deletedCategory,
+          transferTarget: transferTarget || 'Uncategorized',
+          transferTargetId: targetCategoryId,
+        },
+      },
+      connection
+    );
 
     await connection.commit();
   } catch (error) {

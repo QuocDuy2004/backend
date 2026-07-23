@@ -5,7 +5,17 @@ import {
   listProducts,
   updateProduct,
 } from '../services/products.service';
+import { listEntityChangeLogs } from '../services/change-logs.service';
 import { normalizeText } from '../utils/text';
+
+function productErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : fallback;
+  if (message.includes('max_allowed_packet') || message.includes('packet bigger')) {
+    return 'Dung lượng ảnh sản phẩm quá lớn. Vui lòng chọn ít ảnh hơn hoặc dùng ảnh nhẹ hơn.';
+  }
+
+  return message;
+}
 
 export async function getProducts(_req: Request, res: Response) {
   try {
@@ -28,7 +38,17 @@ export async function createProductHandler(req: Request, res: Response) {
     const product = await createProduct({ ...req.body, name, sku });
     res.status(201).json({ ok: true, product });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create product';
+    const message = productErrorMessage(error, 'Failed to create product');
+    res.status(500).json({ ok: false, message });
+  }
+}
+
+export async function getProductChangeLogs(req: Request, res: Response) {
+  try {
+    const logs = await listEntityChangeLogs('product', req.params.id);
+    res.json({ ok: true, logs });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch product change logs';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -42,7 +62,7 @@ export async function updateProductHandler(req: Request, res: Response) {
 
     res.json({ ok: true, product });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update product';
+    const message = productErrorMessage(error, 'Failed to update product');
     res.status(500).json({ ok: false, message });
   }
 }

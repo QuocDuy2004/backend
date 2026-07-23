@@ -22,7 +22,7 @@ export default function CustomSelect({
   value,
   onChange,
   options,
-  placeholder = 'Chá»n má»™t giÃ¡ trá»‹...',
+  placeholder = 'Chọn một giá trị...',
   icon,
   className = '',
   align = 'left',
@@ -96,7 +96,7 @@ export default function CustomSelect({
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="TÃ¬m kiáº¿m..."
+                    placeholder="Tìm kiếm..."
                     className="w-full pl-8 pr-3 py-1.5 bg-slate-50 text-xs border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-blue-500 transition-colors"
                   />
                 </div>
@@ -129,7 +129,7 @@ export default function CustomSelect({
                 })
               ) : (
                 <div className="py-4 px-3 text-center text-xs text-slate-400 italic">
-                  KhÃ´ng tÃ¬m tháº¥y káº¿t quáº£
+                  Không tìm thấy kết quả
                 </div>
               )}
             </div>

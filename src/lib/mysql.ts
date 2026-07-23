@@ -1,8 +1,8 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
-dotenv.config();
+dotenv.config({ path: '.env.local', quiet: true });
+dotenv.config({ quiet: true });
 
 export const databaseConfig = {
   host: process.env.DB_HOST || '127.0.0.1',

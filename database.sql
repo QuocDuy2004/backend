@@ -6,8 +6,13 @@
 DROP TABLE IF EXISTS user_vouchers;
 DROP TABLE IF EXISTS user_address;
 DROP TABLE IF EXISTS reviews;
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS user_notifications;
 DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS user_cart;
+DROP TABLE IF EXISTS user_favorites;
+DROP TABLE IF EXISTS entity_change_logs;
 DROP TABLE IF EXISTS banners;
 DROP TABLE IF EXISTS settings;
 DROP TABLE IF EXISTS payments;
@@ -22,8 +27,8 @@ CREATE TABLE categories (
   image TEXT NULL COMMENT 'Category cover image URL for CategoryCard.',
   status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
   sort_order INT NOT NULL DEFAULT 0,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
 
   UNIQUE KEY uq_categories_slug (slug),
   INDEX idx_categories_status_sort (status, sort_order)
@@ -55,7 +60,7 @@ CREATE TABLE banners (
   sort_order INT NOT NULL DEFAULT 0,
   starts_at DATETIME NULL,
   expires_at DATETIME NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   INDEX idx_banners_category (category_id),
@@ -147,6 +152,23 @@ CREATE TABLE products (
     ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE entity_change_logs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  entity_type ENUM('product', 'category', 'customer', 'banner') NOT NULL,
+  entity_id VARCHAR(80) NOT NULL,
+  entity_name VARCHAR(255) NULL,
+  action ENUM('create', 'update', 'delete') NOT NULL,
+  summary VARCHAR(255) NOT NULL,
+  changes JSON NOT NULL DEFAULT (JSON_OBJECT()),
+  actor_id VARCHAR(80) NULL,
+  actor_name VARCHAR(160) NOT NULL DEFAULT 'Quản trị viên',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_entity_change_logs_entity (entity_type, entity_id, created_at),
+  INDEX idx_entity_change_logs_action (action, created_at),
+  CHECK (JSON_VALID(changes))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE users (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
@@ -161,9 +183,6 @@ CREATE TABLE users (
   role ENUM('member', 'seller', 'admin') NOT NULL DEFAULT 'member',
   status ENUM('active', 'blocked', 'deleted') NOT NULL DEFAULT 'active',
 
-  cart JSON NOT NULL DEFAULT (JSON_ARRAY()) COMMENT 'Array of product IDs or cart item objects for mobile restore.',
-  favorites JSON NOT NULL DEFAULT (JSON_ARRAY()) COMMENT 'Array of favorite product IDs.',
-
   loyalty_points INT UNSIGNED NOT NULL DEFAULT 0,
   orders_count INT UNSIGNED NOT NULL DEFAULT 0,
 
@@ -176,10 +195,43 @@ CREATE TABLE users (
   UNIQUE KEY uq_users_email (email),
   INDEX idx_users_phone (phone),
   INDEX idx_users_role_status (role, status),
-  INDEX idx_users_created_at (created_at),
+  INDEX idx_users_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-  CHECK (JSON_VALID(cart)),
-  CHECK (JSON_VALID(favorites))
+CREATE TABLE user_cart (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  product_id VARCHAR(80) NOT NULL,
+  quantity INT UNSIGNED NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uq_user_cart_user_product (user_id, product_id),
+  INDEX idx_user_cart_user (user_id),
+  INDEX idx_user_cart_product (product_id),
+
+  CONSTRAINT fk_user_cart_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE user_favorites (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  product_id VARCHAR(80) NOT NULL,
+  quantity INT UNSIGNED NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uq_user_favorites_user_product (user_id, product_id),
+  INDEX idx_user_favorites_user (user_id),
+  INDEX idx_user_favorites_product (product_id),
+
+  CONSTRAINT fk_user_favorites_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE notifications (
@@ -241,6 +293,111 @@ CREATE TABLE user_address (
 
   CONSTRAINT fk_user_address_user
     FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE support_tickets (
+  id VARCHAR(80) PRIMARY KEY,
+  customer_name VARCHAR(160) NOT NULL,
+  customer_email VARCHAR(255) NOT NULL,
+  last_message TEXT NULL,
+  status ENUM('open', 'pending', 'solved') NOT NULL DEFAULT 'open',
+  priority ENUM('low', 'medium', 'high', 'urgent') NOT NULL DEFAULT 'medium',
+  sentiment ENUM('positive', 'neutral', 'negative') NOT NULL DEFAULT 'neutral',
+  sentiment_score DECIMAL(5,2) NOT NULL DEFAULT 0,
+  intent VARCHAR(160) NOT NULL DEFAULT 'General Support',
+  confidence_score INT UNSIGNED NOT NULL DEFAULT 0,
+  assigned_to_ai TINYINT(1) NOT NULL DEFAULT 1,
+  notes TEXT NULL,
+  sla_minutes_remaining INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  INDEX idx_support_tickets_customer_email (customer_email),
+  INDEX idx_support_tickets_status (status, updated_at),
+  INDEX idx_support_tickets_priority (priority, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE support_messages (
+  id VARCHAR(80) PRIMARY KEY,
+  ticket_id VARCHAR(80) NOT NULL,
+  sender ENUM('customer', 'ai', 'agent') NOT NULL,
+  message_text TEXT NOT NULL,
+  metadata JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_support_messages_ticket_time (ticket_id, created_at),
+  INDEX idx_support_messages_sender (sender, created_at),
+  CONSTRAINT fk_support_messages_ticket
+    FOREIGN KEY (ticket_id) REFERENCES support_tickets(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE orders (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_code VARCHAR(80) NULL,
+  user_id INT UNSIGNED NULL,
+  primary_product_id VARCHAR(80) NULL COMMENT 'First Expo OrderItem.productId for quick single-product checkout lookup.',
+  payment_id INT UNSIGNED NULL,
+  customer_name VARCHAR(160) NOT NULL,
+  customer_phone VARCHAR(40) NOT NULL,
+  customer_email VARCHAR(255) NULL,
+  customer_address TEXT NOT NULL,
+  items JSON NOT NULL,
+  subtotal DECIMAL(14,2) NOT NULL DEFAULT 0,
+  shipping_fee DECIMAL(14,2) NOT NULL DEFAULT 0,
+  discount_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  total_amount DECIMAL(14,2) NOT NULL DEFAULT 0,
+  voucher_code_used VARCHAR(80) NULL,
+  shipping_unit VARCHAR(120) NOT NULL DEFAULT 'standard',
+  payment_method ENUM('COD', 'vnpay', 'momo', 'visa', 'bank_transfer') NOT NULL DEFAULT 'COD',
+  payment_status ENUM('pending', 'paid', 'failed', 'refunded') NOT NULL DEFAULT 'pending',
+  order_status ENUM('pending', 'processing', 'shipping', 'completed', 'delivered', 'cancelled', 'refunded') NOT NULL DEFAULT 'pending',
+  note TEXT NULL,
+  timeline JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uq_orders_order_code (order_code),
+  INDEX idx_orders_user (user_id),
+  INDEX idx_orders_primary_product (primary_product_id),
+  INDEX idx_orders_payment (payment_id),
+  INDEX idx_orders_status_date (order_status, created_at),
+  INDEX idx_orders_phone (customer_phone),
+
+  CHECK (JSON_VALID(items)),
+  CHECK (JSON_VALID(timeline)),
+  CONSTRAINT fk_orders_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL,
+  CONSTRAINT fk_orders_payment
+    FOREIGN KEY (payment_id) REFERENCES payments(id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE order_items (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  product_id VARCHAR(80) NOT NULL COMMENT 'Expo OrderItem.productId; kept as text because app product ids are strings.',
+  product_name VARCHAR(255) NOT NULL,
+  product_image TEXT NULL,
+  quantity INT UNSIGNED NOT NULL DEFAULT 1,
+  price DECIMAL(14,2) NOT NULL DEFAULT 0,
+  selected_color VARCHAR(120) NULL,
+  selected_size VARCHAR(120) NULL,
+  selected_version VARCHAR(120) NULL,
+  line_total DECIMAL(14,2) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_order_items_order (order_id),
+  INDEX idx_order_items_product (product_id),
+
+  CONSTRAINT fk_order_items_order
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+    ON UPDATE CASCADE
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -537,7 +694,7 @@ INSERT INTO products (
 (
   (SELECT id FROM categories WHERE slug = 'dien-thoai-laptop'),
   'IP15PM-256',
-  'iPhone 15 Pro Max 256GB chinh hang VN/A',
+  'iPhone 15 Pro Max 256GB chinh hang VN/A1',
   'iphone-15-pro-max-256gb-chinh-hang-vna',
   'Apple',
   JSON_ARRAY(
@@ -582,7 +739,7 @@ INSERT INTO products (
   'Laptop mong nhe voi chip Apple M3, man hinh Liquid Retina va pin ca ngay.',
   'active'
 ),
-( 
+(
   (SELECT id FROM categories WHERE slug = 'thoi-trang'),
   'WIND-BLOCKER',
   'Ao khoac gio nam chong nuoc WindBlocker',
@@ -659,7 +816,7 @@ CREATE TABLE user_vouchers (
 
 INSERT INTO users (
   username, password, name, email, phone, image,
-  role, status, cart, favorites, loyalty_points, orders_count, password_changed_at
+  role, status, loyalty_points, orders_count, password_changed_at
 ) VALUES
 (
   'admin',
@@ -670,23 +827,6 @@ INSERT INTO users (
   NULL,
   'admin',
   'active',
-  JSON_ARRAY(),
-  JSON_ARRAY(),
-  0,
-  0,
-  NOW()
-),
-(
-  'seller_demo',
-  MD5('seller123'),
-  'Velocart Seller',
-  'seller@velocart.vn',
-  '0900000001',
-  NULL,
-  'seller',
-  'active',
-  JSON_ARRAY(),
-  JSON_ARRAY(),
   0,
   0,
   NOW()
@@ -700,8 +840,6 @@ INSERT INTO users (
   'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
   'member',
   'active',
-  JSON_ARRAY(),
-  JSON_ARRAY('p1', 'p5'),
   1240,
   14,
   NOW()
