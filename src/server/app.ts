@@ -100,6 +100,9 @@ async function mountFrontend(hmrPort: number) {
 }
 
 export async function startServer() {
+  // Log DB config để debug (không log password)
+  console.log(`🔧 DB Config: host=${env.database.host} port=${env.database.port} user=${env.database.user} db=${env.database.name}`);
+
   // Try to connect database, but continue if fails (for demo/testing)
   try {
     await ensureDatabaseSchema();
