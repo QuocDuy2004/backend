@@ -97,9 +97,16 @@ async function mountFrontend(hmrPort: number) {
 }
 
 export async function startServer() {
-  await ensureDatabaseSchema();
-  await ensureEntityChangeLogsTable();
-  await ensureSupportTables();
+  // Try to connect database, but continue if fails (for demo/testing)
+  try {
+    await ensureDatabaseSchema();
+    await ensureEntityChangeLogsTable();
+    await ensureSupportTables();
+    console.log('✅ Database connected successfully');
+  } catch (error) {
+    console.error('⚠️  Database connection failed. Running without database:', error);
+    console.warn('⚠️  Please configure DB_HOST, DB_USER, DB_PASSWORD environment variables');
+  }
 
   const appPort = await findAvailablePort(env.port);
   const requestedHmrPort = Number(process.env.HMR_PORT || appPort + 1000);
