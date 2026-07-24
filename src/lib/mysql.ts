@@ -13,10 +13,25 @@ export const databaseConfig = {
   namedPlaceholders: true,
 };
 
-export const pool = mysql.createPool(databaseConfig);
+// Lazy pool — created on first use so env vars are fully resolved
+let _pool: mysql.Pool | null = null;
+
+export function getPool(): mysql.Pool {
+  if (!_pool) {
+    _pool = mysql.createPool(databaseConfig);
+  }
+  return _pool;
+}
+
+// Keep backward compat — proxy to lazy pool
+export const pool = new Proxy({} as mysql.Pool, {
+  get(_target, prop) {
+    return (getPool() as any)[prop];
+  },
+});
 
 export async function testDatabaseConnection() {
-  const connection = await pool.getConnection();
+  const connection = await getPool().getConnection();
   try {
     const [rows] = await connection.query('SELECT DATABASE() AS databaseName, NOW() AS serverTime');
     return rows;

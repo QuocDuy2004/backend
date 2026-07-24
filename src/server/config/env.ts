@@ -1,7 +1,10 @@
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local', quiet: true });
-dotenv.config({ quiet: true });
+// Only load .env.local in development (not on Render/production)
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: '.env.local', quiet: true });
+  dotenv.config({ quiet: true });
+}
 
 const numberFromEnv = (value: string | undefined, fallback: number) => {
   const parsed = Number(value);
