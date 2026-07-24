@@ -1,19 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import mysql from 'mysql2/promise';
+import { databaseConfig } from '../src/lib/mysql';
 
 const schemaPath = path.resolve(process.cwd(), 'database.sql');
-
-// Read directly from process.env at call time to avoid esbuild freeze
-function getDbConfig() {
-  return {
-    host: process.env.DB_HOST || '127.0.0.1',
-    port: Number(process.env.DB_PORT) || 3306,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_DATABASE || 'demo',
-  };
-}
+const databaseName = databaseConfig.database;
 
 type EnsureDatabaseOptions = {
   resetExisting?: boolean;
@@ -27,20 +18,18 @@ function assertSafeDatabaseName(name: string) {
 }
 
 async function createServerConnection() {
-  const cfg = getDbConfig();
-  assertSafeDatabaseName(cfg.database);
-  console.log(`[ensure-db] Connecting to ${cfg.host}:${cfg.port} user=${cfg.user} db=${cfg.database}`);
+  assertSafeDatabaseName(databaseName);
 
   return mysql.createConnection({
-    host: cfg.host,
-    port: cfg.port,
-    user: cfg.user,
-    password: cfg.password,
+    host: databaseConfig.host,
+    port: databaseConfig.port,
+    user: databaseConfig.user,
+    password: databaseConfig.password,
     multipleStatements: true,
   });
 }
 
-async function hasTables(connection: mysql.Connection, databaseName: string) {
+async function hasTables(connection: mysql.Connection) {
   const [rows] = await connection.query<any[]>(
     `SELECT COUNT(*) AS tableCount
      FROM INFORMATION_SCHEMA.TABLES
@@ -53,9 +42,6 @@ async function hasTables(connection: mysql.Connection, databaseName: string) {
 
 export async function ensureDatabaseSchema(options: EnsureDatabaseOptions = {}) {
   const { resetExisting = false, log = true } = options;
-  const cfg = getDbConfig();
-  const databaseName = cfg.database;
-
   const connection = await createServerConnection();
 
   try {
@@ -64,7 +50,7 @@ export async function ensureDatabaseSchema(options: EnsureDatabaseOptions = {}) 
     );
     await connection.query(`USE \`${databaseName}\``);
 
-    const shouldImportSchema = resetExisting || !(await hasTables(connection, databaseName));
+    const shouldImportSchema = resetExisting || !(await hasTables(connection));
 
     if (!shouldImportSchema) {
       if (log) {

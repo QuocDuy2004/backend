@@ -18,9 +18,6 @@ const allowedOrigins = [
   /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
   /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,
   /^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+:\d+$/,
-  /^https?:\/\/.*\.onrender\.com$/,
-  /^https?:\/\/.*\.railway\.app$/,
-  // Thêm domain production của bạn ở đây nếu có
 ];
 
 app.use((req, res, next) => {
@@ -56,6 +53,7 @@ app.use((error: any, _req: Request, res: Response, next: NextFunction) => {
 
   next(error);
 });
+
 app.post('/webhook/sieuthicode', bankTransferWebhookHandler);
 app.use('/api', apiRouter);
 
@@ -100,19 +98,9 @@ async function mountFrontend(hmrPort: number) {
 }
 
 export async function startServer() {
-  // Log DB config để debug (không log password)
-  console.log(`🔧 DB Config: host=${env.database.host} port=${env.database.port} user=${env.database.user} db=${env.database.name}`);
-
-  // Try to connect database, but continue if fails (for demo/testing)
-  try {
-    await ensureDatabaseSchema();
-    await ensureEntityChangeLogsTable();
-    await ensureSupportTables();
-    console.log('✅ Database connected successfully');
-  } catch (error) {
-    console.error('⚠️  Database connection failed. Running without database:', error);
-    console.warn('⚠️  Please configure DB_HOST, DB_USER, DB_PASSWORD environment variables');
-  }
+  await ensureDatabaseSchema();
+  await ensureEntityChangeLogsTable();
+  await ensureSupportTables();
 
   const appPort = await findAvailablePort(env.port);
   const requestedHmrPort = Number(process.env.HMR_PORT || appPort + 1000);
