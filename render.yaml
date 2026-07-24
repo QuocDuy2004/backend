@@ -3,7 +3,7 @@ services:
     name: velocart-backend
     env: node
     buildCommand: npm ci && npm run build
-    startCommand: npm start
+    startCommand: node -e "console.log('ENV CHECK - DB_HOST:', process.env.DB_HOST, 'NODE_ENV:', process.env.NODE_ENV)" && npm start
     envVars:
       - key: NODE_ENV
         value: production
