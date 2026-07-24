@@ -74,7 +74,7 @@ export function LoginPage({ onLogin, requiredRole }: LoginPageProps) {
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-lg bg-blue-600 flex items-center justify-center font-black text-xl">V</div>
           <div>
-            <h1 className="text-lg font-extrabold">Velocart {portalLabel}</h1>
+            <h1 className="text-lg font-extrabold">LOGO {portalLabel}</h1>
             <p className="text-xs text-slate-400 font-semibold">Operations control center</p>
           </div>
         </div>

@@ -44,6 +44,14 @@ View your app in AI Studio: https://ai.studio/apps/544cf690-8f15-4237-88c1-00d2f
 
 Direct import file: `database.sql`
 
+### GitHub and production environment
+
+- Commit `.env.example` so every clone keeps the database connection template.
+- Do not commit `.env`, `.env.local`, or real database passwords.
+- On a VPS, create `.env.local` from `.env.example` or set the same variables in the hosting panel/PM2 environment.
+- In `NODE_ENV=production`, the server requires `DB_HOST`, `DB_USER`, `DB_DATABASE`, and `JWT_SECRET`; missing values will stop startup with a clear error.
+- Default local database name is `demo`, matching the current phpMyAdmin setup. Change `DB_DATABASE` in `.env.local` if the production database uses another name.
+
 ## Auth API
 
 Base URL: `http://localhost:3000`
