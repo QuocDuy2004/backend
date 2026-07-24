@@ -18,6 +18,9 @@ const allowedOrigins = [
   /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
   /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,
   /^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+:\d+$/,
+  /^https?:\/\/.*\.onrender\.com$/,
+  /^https?:\/\/.*\.railway\.app$/,
+  // Thêm domain production của bạn ở đây nếu có
 ];
 
 app.use((req, res, next) => {
