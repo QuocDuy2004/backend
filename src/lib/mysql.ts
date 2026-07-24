@@ -1,29 +1,49 @@
 import mysql from 'mysql2/promise';
-import { env } from '../server/config/env';
 
+// Read directly from process.env at call time — NOT from cached env module
+// This avoids esbuild bundling issues where env values get frozen at build time
+function getDatabaseConfig() {
+  return {
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: Number(process.env.DB_PORT) || 3306,
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_DATABASE || 'demo',
+    waitForConnections: true,
+    connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
+    queueLimit: 0,
+    namedPlaceholders: true,
+  };
+}
+
+// Keep databaseConfig for backward compat (ensure-database.ts uses it)
 export const databaseConfig = {
-  host: env.database.host,
-  port: env.database.port,
-  user: env.database.user,
-  password: env.database.password,
-  database: env.database.name,
+  get host() { return process.env.DB_HOST || '127.0.0.1'; },
+  get port() { return Number(process.env.DB_PORT) || 3306; },
+  get user() { return process.env.DB_USER || 'root'; },
+  get password() { return process.env.DB_PASSWORD || ''; },
+  get database() { return process.env.DB_DATABASE || 'demo'; },
   waitForConnections: true,
-  connectionLimit: env.database.connectionLimit,
+  get connectionLimit() { return Number(process.env.DB_CONNECTION_LIMIT) || 10; },
   queueLimit: 0,
   namedPlaceholders: true,
 };
 
-// Lazy pool — created on first use so env vars are fully resolved
+// Lazy pool — recreated if env changes
 let _pool: mysql.Pool | null = null;
+let _poolConfig: string = '';
 
 export function getPool(): mysql.Pool {
-  if (!_pool) {
-    _pool = mysql.createPool(databaseConfig);
+  const currentConfig = JSON.stringify(getDatabaseConfig());
+  if (!_pool || _poolConfig !== currentConfig) {
+    _pool = mysql.createPool(getDatabaseConfig());
+    _poolConfig = currentConfig;
+    console.log(`[mysql] Pool created with host=${process.env.DB_HOST} port=${process.env.DB_PORT}`);
   }
   return _pool;
 }
 
-// Keep backward compat — proxy to lazy pool
+// Proxy for backward compat
 export const pool = new Proxy({} as mysql.Pool, {
   get(_target, prop) {
     return (getPool() as any)[prop];
