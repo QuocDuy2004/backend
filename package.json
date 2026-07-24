@@ -10,8 +10,7 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "db:init": "tsx database/init-database.ts",
-    "db:test": "tsx database/test-connection.ts",
-    "db:seed:catalog": "tsx database/seed-catalog.ts"
+    "db:test": "tsx database/test-connection.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
