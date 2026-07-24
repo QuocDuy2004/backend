@@ -12,8 +12,8 @@ RUN npm ci
 # Copy source files
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build the application (frontend only via vite)
+RUN npx vite build
 
 # Production stage
 FROM node:20-alpine
@@ -23,17 +23,18 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --omit=dev
+# Install ALL dependencies (need tsx to run TypeScript directly)
+RUN npm ci
 
-# Copy built files from builder
+# Copy source files and built frontend
+COPY . .
 COPY --from=builder /app/dist ./dist
 
-# Expose port (adjust if your app uses a different port)
+# Expose port
 EXPOSE 3000
 
 # Set environment to production
 ENV NODE_ENV=production
 
-# Start the application
-CMD ["npm", "start"]
+# Run TypeScript directly with tsx (reads process.env at runtime)
+CMD ["npx", "tsx", "server.ts"]
