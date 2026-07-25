@@ -166,7 +166,7 @@ DB_DATABASE=demo
 DB_SSL=false
 ```
 
-### Production (`.env` hoặc Render Environment Variables)
+### Production (`.env` hoặc Vercel Environment Variables)
 ```env
 NODE_ENV=production
 APP_URL=https://yourdomain.com
@@ -197,7 +197,7 @@ Domain: https://yourdomain.com
 ```
 
 **Setup:**
-- Deploy lên Render hoặc Vercel
+- Deploy lên Vercel
 - Set `VITE_API_BASE_URL=` (để trống)
 - Vite proxy config sẽ tự động forward `/api` và `/webhook` đến Express backend
 
@@ -284,7 +284,7 @@ Kiến trúc API đã được tối ưu hoàn chỉnh với:
 2. **Type Safety** – TypeScript đầy đủ
 3. **Maintainability** – Chỉ sửa 1 chỗ khi API thay đổi
 4. **Scalability** – Dễ thêm API module mới
-5. **Production Ready** – Sẵn sàng deploy với Render + Aiven MySQL
+5. **Production Ready** – Sẵn sàng deploy với Vercel + MySQL
 
 ---
 

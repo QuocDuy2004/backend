@@ -14,4 +14,3 @@ reg-log-*.json
 facebook-secrets.local.json
 
 .vercel
-.env*
