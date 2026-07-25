@@ -11,9 +11,13 @@ import { ensureSupportTables } from './services/support.service';
 
 export const app = express();
 
+const defaultAllowedOrigins = [
+  'https://frontend-ten-gamma-17.vercel.app',
+];
+
 // CORS: đọc toàn bộ từ env, không hardcode bất kỳ domain nào
 function buildAllowedOrigins(): (RegExp | string)[] {
-  const origins: (RegExp | string)[] = [];
+  const origins: (RegExp | string)[] = [...defaultAllowedOrigins];
 
   // Local dev: bật khi NODE_ENV !== production
   if (process.env.NODE_ENV !== 'production') {
