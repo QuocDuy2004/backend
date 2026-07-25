@@ -9,6 +9,7 @@ const int = (v: string | undefined, fallback: number) => {
 };
 
 const appUrl = (process.env.APP_URL || process.env.VITE_APP_URL || '').replace(/\/$/, '');
+const databaseUrl = (process.env.DATABASE_URL || process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL || '').trim();
 
 export const env = {
   port:    int(process.env.PORT, 3000),
@@ -22,6 +23,7 @@ export const env = {
   geminiApiKey: process.env.GEMINI_API_KEY || '',
 
   database: {
+    url:            databaseUrl,
     host:            process.env.DB_HOST     || '',
     port:            int(process.env.DB_PORT, 3306),
     user:            process.env.DB_USER     || '',
