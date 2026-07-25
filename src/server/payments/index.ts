@@ -14,7 +14,7 @@ export async function getPayments(req: Request, res: Response) {
     const includeInactive = req.query.includeInactive === 'true';
     res.json({ ok: true, payments: await listPayments(includeInactive) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch payments';
+    const message = error instanceof Error ? error.message : 'Không thể lấy danh sách phương thức thanh toán.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -35,12 +35,12 @@ export async function updatePaymentHandler(req: Request, res: Response) {
     });
 
     if (!payment) {
-      return res.status(404).json({ ok: false, message: 'Payment method not found.' });
+      return res.status(404).json({ ok: false, message: 'Không tìm thấy phương thức thanh toán.' });
     }
 
     res.json({ ok: true, payment });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update payment';
+    const message = error instanceof Error ? error.message : 'Không thể cập nhật phương thức thanh toán.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -50,7 +50,7 @@ export async function createPaymentHandler(req: Request, res: Response) {
   const title = normalizeText(req.body.title);
 
   if (!code || !title) {
-    return res.status(400).json({ ok: false, message: 'Payment code and title are required.' });
+    return res.status(400).json({ ok: false, message: 'Mã thanh toán và tiêu đề là bắt buộc.' });
   }
 
   try {
@@ -71,10 +71,10 @@ export async function createPaymentHandler(req: Request, res: Response) {
     res.status(201).json({ ok: true, payment });
   } catch (error: any) {
     const message = error?.code === 'ER_DUP_ENTRY'
-      ? 'Payment method code already exists.'
+      ? 'Mã phương thức thanh toán đã tồn tại.'
       : error instanceof Error
         ? error.message
-        : 'Failed to create payment';
+        : 'Không thể tạo phương thức thanh toán.';
     res.status(error?.code === 'ER_DUP_ENTRY' ? 409 : 500).json({ ok: false, message });
   }
 }
@@ -84,16 +84,16 @@ export async function deletePaymentHandler(req: Request, res: Response) {
     const deleted = await deletePayment(normalizeText(req.params.code));
 
     if (!deleted) {
-      return res.status(404).json({ ok: false, message: 'Payment method not found.' });
+      return res.status(404).json({ ok: false, message: 'Không tìm thấy phương thức thanh toán.' });
     }
 
     res.json({ ok: true });
   } catch (error: any) {
     const message = error?.code === 'ER_ROW_IS_REFERENCED_2'
-      ? 'Payment method is being used by orders and cannot be deleted.'
+      ? 'Phương thức thanh toán đang được đơn hàng sử dụng nên không thể xóa.'
       : error instanceof Error
         ? error.message
-        : 'Failed to delete payment';
+        : 'Không thể xóa phương thức thanh toán.';
     res.status(error?.code === 'ER_ROW_IS_REFERENCED_2' ? 409 : 500).json({ ok: false, message });
   }
 }
@@ -105,7 +105,7 @@ export async function createVNPayPaymentHandler(req: Request, res: Response) {
     if (!orderId || !amount || amount <= 0) {
       return res.status(400).json({
         ok: false,
-        message: 'Missing or invalid orderId or amount.',
+        message: 'Thiếu hoặc không hợp lệ orderId hoặc amount.',
       });
     }
 
@@ -127,7 +127,7 @@ export async function createVNPayPaymentHandler(req: Request, res: Response) {
 
     res.json({ ok: true, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create VNPay payment';
+    const message = error instanceof Error ? error.message : 'Không thể tạo thanh toán VNPay.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -139,7 +139,7 @@ export async function createVNPayTokenHandler(req: Request, res: Response) {
     if (!orderId || !userId || !amount || Number(amount) <= 0) {
       return res.status(400).json({
         ok: false,
-        message: 'Missing or invalid orderId, userId or amount.',
+        message: 'Thiếu hoặc không hợp lệ orderId, userId hoặc amount.',
       });
     }
 
@@ -179,7 +179,7 @@ export async function createVNPayTokenHandler(req: Request, res: Response) {
 
     res.json({ ok: true, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create VNPay token payment';
+    const message = error instanceof Error ? error.message : 'Không thể tạo thanh toán VNPay Token.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -265,7 +265,7 @@ export async function vnpayTokenCancelHandler(req: Request, res: Response) {
     orderId,
     paymentMethod: 'vnpay',
     status: 'failed',
-    message: 'Khach hang da huy thanh toan VNPay.',
+    message: 'Khách hàng đã hủy thanh toán VNPay.',
   }));
 }
 
@@ -291,7 +291,7 @@ export async function confirmVNPayTryItNowHandler(req: Request, res: Response) {
       total: Number(params.vnp_Amount || 0) > 0 ? Math.round(Number(params.vnp_Amount) / 100) : undefined,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to confirm VNPay sandbox payment';
+    const message = error instanceof Error ? error.message : 'Không thể xác nhận thanh toán VNPay sandbox.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -304,7 +304,7 @@ export async function confirmVNPayTryItNowRedirectHandler(req: Request, res: Res
     const result = parseVNPayTryItNowReturn(params);
 
     if (!result.orderId) {
-      const message = 'Khong tim thay ma don hang trong phan hoi VNPay sandbox.';
+      const message = 'Không tìm thấy mã đơn hàng trong phản hồi VNPay sandbox.';
       return res.redirect(`${redirectUrl}/order-success?status=failed&paymentMethod=vnpay&message=${encodeURIComponent(message)}`);
     }
 
@@ -314,7 +314,7 @@ export async function confirmVNPayTryItNowRedirectHandler(req: Request, res: Res
 
     return res.redirect(`${redirectUrl}/order-success?orderId=${result.orderId}&total=${total || ''}&paymentMethod=vnpay&status=${result.isSuccess ? 'success' : 'failed'}&message=${encodeURIComponent(result.message)}`);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to confirm VNPay sandbox payment';
+    const message = error instanceof Error ? error.message : 'Không thể xác nhận thanh toán VNPay sandbox.';
     return res.redirect(`${redirectUrl}/order-success?status=failed&paymentMethod=vnpay&message=${encodeURIComponent(message)}`);
   }
 }
@@ -326,7 +326,7 @@ export async function createMoMoPaymentHandler(req: Request, res: Response) {
     if (!orderId || !amount || amount <= 0) {
       return res.status(400).json({
         ok: false,
-        message: 'Missing or invalid orderId or amount.',
+        message: 'Thiếu hoặc không hợp lệ orderId hoặc amount.',
       });
     }
 
@@ -339,7 +339,7 @@ export async function createMoMoPaymentHandler(req: Request, res: Response) {
 
     res.json({ ok: true, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create MoMo payment';
+    const message = error instanceof Error ? error.message : 'Không thể tạo thanh toán MoMo.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -356,7 +356,7 @@ export async function momoReturnHandler(req: Request, res: Response) {
     const redirectUrl = process.env.FRONTEND_URL || 'http://localhost:8081';
     res.redirect(`${redirectUrl}/order-success?orderId=${result.orderId || ''}&status=${result.isSuccess ? 'success' : 'failed'}&message=${encodeURIComponent(result.message)}`);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'MoMo return handler failed';
+    const message = error instanceof Error ? error.message : 'Xử lý kết quả MoMo thất bại.';
     const redirectUrl = process.env.FRONTEND_URL || 'http://localhost:8081';
     res.redirect(`${redirectUrl}/order-success?status=failed&message=${encodeURIComponent(message)}`);
   }
@@ -384,7 +384,7 @@ export async function createVisaPaymentHandler(req: Request, res: Response) {
     if (!orderId || !amount || Number(amount) <= 0) {
       return res.status(400).json({
         ok: false,
-        message: 'Missing or invalid orderId or amount.',
+        message: 'Thiếu hoặc không hợp lệ orderId hoặc amount.',
       });
     }
 
@@ -407,7 +407,7 @@ export async function createVisaPaymentHandler(req: Request, res: Response) {
 
     res.json({ ok: true, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create Visa / Mastercard payment';
+    const message = error instanceof Error ? error.message : 'Không thể tạo thanh toán Visa / Mastercard.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -433,7 +433,7 @@ export async function visaReturnHandler(req: Request, res: Response) {
       message: result.message,
     }));
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Visa / Mastercard return handler failed';
+    const message = error instanceof Error ? error.message : 'Xử lý kết quả Visa / Mastercard thất bại.';
     res.redirect(buildPaymentRedirectUrl(undefined, {
       paymentMethod: 'visa',
       status: 'failed',
@@ -464,19 +464,19 @@ export async function createBankTransferPaymentHandler(req: Request, res: Respon
     if (!orderId || !amount || Number(amount) <= 0) {
       return res.status(400).json({
         ok: false,
-        message: 'Missing or invalid orderId or amount.',
+        message: 'Thiếu hoặc không hợp lệ orderId hoặc amount.',
       });
     }
 
     const result = await createBankTransferPayment({
       orderId: String(orderId),
       amount: Number(amount),
-      payerName: String(payerName || 'Khach hang'),
+      payerName: String(payerName || 'Khách hàng'),
     });
 
     res.json({ ok: true, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create bank transfer payment';
+    const message = error instanceof Error ? error.message : 'Không thể tạo thanh toán chuyển khoản.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -487,7 +487,7 @@ export async function bankTransferWebhookHandler(req: Request, res: Response) {
     const signature = String(req.headers.signature || req.headers.Signature || '').trim();
 
     if (!config.webhookSignature || signature !== config.webhookSignature) {
-      return res.status(401).send('Chu ky khong hop le.');
+      return res.status(401).send('Chữ ký không hợp lệ.');
     }
 
     const transactions = Array.isArray(req.body?.transactions) ? req.body.transactions : [];
@@ -499,7 +499,7 @@ export async function bankTransferWebhookHandler(req: Request, res: Response) {
 
     res.json({ status: true, msg: 'OK', matched: matched.length });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to process bank transfer webhook';
+    const message = error instanceof Error ? error.message : 'Không thể xử lý webhook chuyển khoản.';
     res.status(500).json({ status: false, msg: message });
   }
 }
@@ -515,7 +515,7 @@ export async function syncBankTransferTransactionsHandler(_req: Request, res: Re
 
     res.json({ ok: true, matched: matched.length, transactions: transactions.length });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to sync bank transfer transactions';
+    const message = error instanceof Error ? error.message : 'Không thể đồng bộ giao dịch chuyển khoản.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -533,7 +533,7 @@ export async function bankTransferStatusHandler(req: Request, res: Response) {
     );
 
     if (!rows[0]) {
-      return res.status(404).json({ ok: false, message: 'Order not found.' });
+      return res.status(404).json({ ok: false, message: 'Không tìm thấy đơn hàng.' });
     }
 
     const order = rows[0];
@@ -546,7 +546,7 @@ export async function bankTransferStatusHandler(req: Request, res: Response) {
       paid: order.payment_status === 'paid' || order.order_status === 'completed',
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get bank transfer status';
+    const message = error instanceof Error ? error.message : 'Không thể lấy trạng thái chuyển khoản.';
     res.status(500).json({ ok: false, message });
   }
 }

@@ -11,6 +11,11 @@ import {
 } from '../services/users.service';
 import { normalizeText } from '../utils/text';
 
+/** Phát hiện lỗi kết nối DB để trả về message thân thiện, không lộ thông tin nội bộ. */
+function isDbConnectionError(message: string) {
+  return /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|PROTOCOL_CONNECTION_LOST|ER_ACCESS_DENIED/i.test(message);
+}
+
 export async function register(req: Request, res: Response) {
   const username = normalizeText(req.body.username);
   const password = normalizeText(req.body.password);
@@ -23,14 +28,14 @@ export async function register(req: Request, res: Response) {
   if (!username || !password || !name || !email) {
     return res.status(400).json({
       ok: false,
-      message: 'username, password, name, email la bat buoc.',
+      message: 'username, password, name, email là bắt buộc.',
     });
   }
 
   if (password.length < 6) {
     return res.status(400).json({
       ok: false,
-      message: 'password phai co it nhat 6 ky tu.',
+      message: 'password phải có ít nhất 6 ký tự.',
     });
   }
 
@@ -38,18 +43,21 @@ export async function register(req: Request, res: Response) {
     if (await usernameOrEmailExists(username, email)) {
       return res.status(409).json({
         ok: false,
-        message: 'Username hoac email da ton tai.',
+        message: 'Username hoặc email đã tồn tại.',
       });
     }
 
     const user = await createUser({ username, password, name, email, phone, address, role });
     return res.status(201).json({
       ok: true,
-      message: 'Dang ky thanh cong.',
+      message: 'Đăng ký thành công.',
       user,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Register failed';
+    const raw = error instanceof Error ? error.message : 'Đăng ký thất bại';
+    const message = isDbConnectionError(raw)
+      ? 'Không thể kết nối cơ sở dữ liệu. Vui lòng thử lại sau.'
+      : raw;
     return res.status(500).json({ ok: false, message });
   }
 }
@@ -61,7 +69,7 @@ export async function login(req: Request, res: Response) {
   if (!usernameOrEmail || !password) {
     return res.status(400).json({
       ok: false,
-      message: 'usernameOrEmail va password la bat buoc.',
+      message: 'usernameOrEmail và password là bắt buộc.',
     });
   }
 
@@ -71,14 +79,14 @@ export async function login(req: Request, res: Response) {
     if (!user) {
       return res.status(401).json({
         ok: false,
-        message: 'Sai tai khoan hoac mat khau.',
+        message: 'Sai tài khoản hoặc mật khẩu.',
       });
     }
 
     if (user.status !== 'active') {
       return res.status(403).json({
         ok: false,
-        message: 'Tai khoan khong hoat dong.',
+        message: 'Tài khoản không hoạt động.',
       });
     }
 
@@ -86,14 +94,17 @@ export async function login(req: Request, res: Response) {
 
     return res.json({
       ok: true,
-      message: 'Dang nhap thanh cong.',
+      message: 'Đăng nhập thành công.',
       'jwt-token': signAuthToken(user),
       tokenType: 'Bearer',
       expiresIn: env.jwtExpiresIn,
       user: publicUser(user),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Login failed';
+    const raw = error instanceof Error ? error.message : 'Đăng nhập thất bại';
+    const message = isDbConnectionError(raw)
+      ? 'Không thể kết nối cơ sở dữ liệu. Vui lòng thử lại sau.'
+      : raw;
     return res.status(500).json({ ok: false, message });
   }
 }

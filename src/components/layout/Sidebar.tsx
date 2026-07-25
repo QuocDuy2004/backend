@@ -65,6 +65,7 @@ export default function Sidebar({
   mobileTitle = 'Bảng điều khiển',
 }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const [storeName, setStoreName] = useState('VeloCart');
   const initial = userName
     .split(' ')
@@ -77,6 +78,13 @@ export default function Sidebar({
   const handleNav = (id: string) => {
     onNavigate(id);
     setMobileOpen(false);
+    setMobileAccountOpen(false);
+  };
+
+  const handleLogout = () => {
+    setMobileOpen(false);
+    setMobileAccountOpen(false);
+    onLogout();
   };
 
   useEffect(() => {
@@ -152,7 +160,7 @@ export default function Sidebar({
             <p className="text-[9px] font-black uppercase text-slate-400">Bản điều khiển</p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="relative flex shrink-0 items-center gap-1.5">
           <button
             onClick={onOpenCommandPalette}
             className="flex items-center justify-center bg-white border rounded-lg shadow-sm h-9 w-9 border-slate-200 text-slate-500"
@@ -168,9 +176,32 @@ export default function Sidebar({
             <Bell className="h-4.5 w-4.5" />
             <span className="absolute w-2 h-2 border-2 border-white rounded-full right-2 top-2 bg-rose-600" />
           </button>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-slate-100 text-[10px] font-black text-slate-700 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setMobileAccountOpen(prev => !prev)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-slate-100 text-[10px] font-black text-slate-700 shadow-sm transition hover:bg-slate-200"
+            aria-label="Tài khoản"
+            aria-expanded={mobileAccountOpen}
+          >
             {initial}
-          </div>
+          </button>
+
+          {mobileAccountOpen && (
+            <div className="absolute right-0 top-11 z-40 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <p className="truncate text-xs font-extrabold text-slate-950">{userName}</p>
+                <p className="mt-0.5 truncate text-[10px] font-mono text-slate-400">{userEmail}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-2 px-4 py-3 text-left text-xs font-bold text-rose-600 transition hover:bg-rose-50"
+              >
+                <LogOut className="h-4 w-4" />
+                Đăng xuất
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -209,7 +240,7 @@ export default function Sidebar({
             </div>
 
             <div className="pt-4 border-t border-slate-100">
-              <AccountFooter initial={initial} userEmail={userEmail} userName={userName} onLogout={onLogout} />
+              <AccountFooter initial={initial} userEmail={userEmail} userName={userName} onLogout={handleLogout} />
             </div>
           </aside>
         </div>
@@ -270,7 +301,7 @@ export default function Sidebar({
             initial={initial}
             userEmail={userEmail}
             userName={userName}
-            onLogout={onLogout}
+            onLogout={handleLogout}
           />
         </div>
       </aside>
@@ -292,22 +323,30 @@ function AccountFooter({
   onLogout: () => void;
 }) {
   return (
-    <div className={`flex items-center gap-3 ${compact ? 'justify-center' : ''}`}>
-      <div className="flex items-center justify-center text-sm font-extrabold text-blue-700 bg-blue-100 rounded-full h-9 w-9 shrink-0">
-        {initial}
-      </div>
-      {!compact && (
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-extrabold truncate text-slate-950">{userName}</p>
-          <p className="truncate text-[10px] font-mono text-slate-400">{userEmail}</p>
+    <div className={compact ? 'flex justify-center' : 'space-y-3'}>
+      <div className={`flex items-center gap-3 ${compact ? 'justify-center' : ''}`}>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-extrabold text-blue-700">
+          {initial}
         </div>
-      )}
-      <button onClick={onLogout} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
-        <LogOut className="w-4 h-4" />
+        {!compact && (
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-extrabold text-slate-950">{userName}</p>
+            <p className="truncate font-mono text-[10px] text-slate-400">{userEmail}</p>
+          </div>
+        )}
+      </div>
+      <button
+        onClick={onLogout}
+        title={compact ? 'Đăng xuất' : undefined}
+        className={[
+          'flex items-center justify-center gap-2 rounded-lg border border-rose-100 bg-rose-50 text-xs font-bold text-rose-600 transition hover:border-rose-200 hover:bg-rose-100',
+          compact ? 'h-9 w-9' : 'h-9 w-full',
+        ].join(' ')}
+      >
+        <LogOut className="h-4 w-4" />
+        {!compact && <span>Đăng xuất</span>}
       </button>
     </div>
   );
 }
-
-
 

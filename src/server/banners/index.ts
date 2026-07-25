@@ -18,39 +18,39 @@ export async function getBanners(req: Request, res: Response) {
     const includeInactive = req.query.includeInactive !== 'false';
     res.json({ ok: true, banners: await listBanners(includeInactive) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch banners';
+    const message = error instanceof Error ? error.message : 'Không thể lấy danh sách banner.';
     res.status(500).json({ ok: false, message });
   }
 }
 
 export async function createBannerHandler(req: Request, res: Response) {
   if (!requiredText(req.body.tag) || !requiredText(req.body.title) || !requiredText(req.body.cta)) {
-    return res.status(400).json({ ok: false, message: 'Tag, title and CTA are required.' });
+    return res.status(400).json({ ok: false, message: 'Tag, tiêu đề và CTA là bắt buộc.' });
   }
 
   try {
     const banner = await createBanner(req.body);
     res.status(201).json({ ok: true, banner });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create banner';
+    const message = error instanceof Error ? error.message : 'Không thể tạo banner.';
     res.status(500).json({ ok: false, message });
   }
 }
 
 export async function updateBannerHandler(req: Request, res: Response) {
   if (!requiredText(req.body.tag) || !requiredText(req.body.title) || !requiredText(req.body.cta)) {
-    return res.status(400).json({ ok: false, message: 'Tag, title and CTA are required.' });
+    return res.status(400).json({ ok: false, message: 'Tag, tiêu đề và CTA là bắt buộc.' });
   }
 
   try {
     const banner = await updateBanner(req.params.id, req.body);
     if (!banner) {
-      return res.status(404).json({ ok: false, message: 'Banner not found.' });
+      return res.status(404).json({ ok: false, message: 'Không tìm thấy banner.' });
     }
 
     res.json({ ok: true, banner });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update banner';
+    const message = error instanceof Error ? error.message : 'Không thể cập nhật banner.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -60,7 +60,7 @@ export async function getBannerChangeLogs(req: Request, res: Response) {
     const logs = await listEntityChangeLogs('banner', req.params.id);
     res.json({ ok: true, logs });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch banner change logs';
+    const message = error instanceof Error ? error.message : 'Không thể lấy lịch sử thay đổi của banner.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -69,12 +69,12 @@ export async function toggleBannerStatusHandler(req: Request, res: Response) {
   try {
     const banner = await toggleBannerStatus(req.params.id);
     if (!banner) {
-      return res.status(404).json({ ok: false, message: 'Banner not found.' });
+      return res.status(404).json({ ok: false, message: 'Không tìm thấy banner.' });
     }
 
     res.json({ ok: true, banner });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to toggle banner status';
+    const message = error instanceof Error ? error.message : 'Không thể đổi trạng thái banner.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -84,7 +84,7 @@ export async function deleteBannerHandler(req: Request, res: Response) {
     await deleteBanner(req.params.id);
     res.json({ ok: true, message: 'Banner deleted successfully.' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete banner';
+    const message = error instanceof Error ? error.message : 'Không thể xóa banner.';
     res.status(500).json({ ok: false, message });
   }
 }

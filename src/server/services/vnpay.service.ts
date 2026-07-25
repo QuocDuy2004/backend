@@ -318,7 +318,7 @@ export async function createVNPayTokenUrl(params: {
       return {
         paymentUrl,
         source: 'token_ui',
-        tokenConfigError: 'VNPay Token UI dang tu choi chu ky/cau hinh. Hay dung tmnCode/hashSecret duoc cap rieng cho Token VNPAY.',
+        tokenConfigError: 'VNPay Token UI đang từ chối chữ ký/cấu hình. Hãy dùng tmnCode/hashSecret được cấp riêng cho Token VNPAY.',
       };
     }
   }
@@ -385,7 +385,7 @@ export async function validateVNPayMerchantConfig(input: Partial<VNPayConfig>): 
     vnp_Locale: 'vn',
     vnp_CurrCode: 'VND',
     vnp_TxnRef: createNumericTxnRef(),
-    vnp_OrderInfo: 'Kiem tra cau hinh VNPay',
+    vnp_OrderInfo: 'Kiểm tra cấu hình VNPay',
     vnp_OrderType: 'other',
     vnp_Amount: String(10000 * 100),
     vnp_ReturnUrl: config.returnUrl,
@@ -403,7 +403,7 @@ export async function validateVNPayMerchantConfig(input: Partial<VNPayConfig>): 
 
   return {
     ok: true,
-    message: 'Cau hinh VNPay da tao duoc URL thanh toan hop le theo format sandbox.',
+    message: 'Cấu hình VNPay đã tạo được URL thanh toán hợp lệ theo format sandbox.',
     paymentUrl,
   };
 
@@ -417,7 +417,7 @@ export async function validateVNPayMerchantConfig(input: Partial<VNPayConfig>): 
     if (location.includes('/paymentv2/Payment/Error.html?code=70')) {
       return {
         ok: false,
-        message: 'VNPay bao Sai chu ky. vnp_TmnCode va vnp_HashSecret khong khop voi merchant sandbox/production dang dung.',
+        message: 'VNPay báo sai chữ ký. vnp_TmnCode và vnp_HashSecret không khớp với merchant sandbox/production đang dùng.',
         paymentUrl,
       };
     }
@@ -432,11 +432,11 @@ export async function validateVNPayMerchantConfig(input: Partial<VNPayConfig>): 
 
     return {
       ok: true,
-      message: 'Cau hinh VNPay hop le. Co the bat thanh toan va cho callback ve trang thanh cong.',
+      message: 'Cấu hình VNPay hợp lệ. Có thể bật thanh toán và chờ callback về trang thành công.',
       paymentUrl,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Khong the ket noi VNPay sandbox.';
+    const message = error instanceof Error ? error.message : 'Không thể kết nối VNPay sandbox.';
     return { ok: false, message, paymentUrl };
   }
 }
@@ -516,7 +516,7 @@ export async function verifyVNPayReturn(params: Record<string, string>, configOv
     .digest('hex');
 
   if (secureHash !== signed) {
-    return { isSuccess: false, message: 'Checksum validation failed.' };
+    return { isSuccess: false, message: 'Xác thực chữ ký thất bại.' };
   }
 
   const responseCode = params.vnp_ResponseCode;
@@ -527,14 +527,14 @@ export async function verifyVNPayReturn(params: Record<string, string>, configOv
       isSuccess: true,
       orderId: resolveMerchantOrderId(params),
       transactionId: params.vnp_TransactionNo,
-      message: 'Payment successful.',
+      message: 'Thanh toán thành công.',
     };
   }
 
   return {
     isSuccess: false,
     orderId: resolveMerchantOrderId(params),
-    message: `Payment failed. Response code: ${responseCode}`,
+    message: `Thanh toán thất bại. Mã phản hồi: ${responseCode}`,
   };
 }
 
@@ -559,7 +559,7 @@ export async function verifyVNPayTokenReturn(params: Record<string, string>): Pr
     const signed = signVNPayTokenParams(vnpParams, config.hashSecret);
 
     if (secureHash !== signed) {
-      return { isSuccess: false, orderId: resolveTokenOrderId(params), message: 'Checksum validation failed.' };
+      return { isSuccess: false, orderId: resolveTokenOrderId(params), message: 'Xác thực chữ ký thất bại.' };
     }
   }
 
@@ -584,7 +584,7 @@ export async function verifyVNPayTokenReturn(params: Record<string, string>): Pr
     isSuccess,
     orderId: resolveTokenOrderId(params),
     transactionId: String(params.vnp_transaction_no || params.vnp_TransactionNo || params.vnp_txn_ref || params.vnp_TxnRef || '').trim() || undefined,
-    message: isSuccess ? 'Payment successful.' : `Payment failed. Response code: ${status || 'unknown'}`,
+    message: isSuccess ? 'Thanh toán thành công.' : `Thanh toán thất bại. Mã phản hồi: ${status || 'unknown'}`,
   };
 }
 
@@ -620,6 +620,6 @@ export function parseVNPayTryItNowReturn(params: Record<string, string>): {
     isSuccess,
     orderId,
     transactionId: params.vnp_TransactionNo || params.vnp_BankTranNo,
-    message: isSuccess ? 'Payment successful.' : `Payment failed. Response code: ${params.vnp_ResponseCode || 'unknown'}`,
+    message: isSuccess ? 'Thanh toán thành công.' : `Thanh toán thất bại. Mã phản hồi: ${params.vnp_ResponseCode || 'unknown'}`,
   };
 }

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Product, Category } from '../../../types';
 import CustomSelect from '../../shared/ui/CustomSelect';
 import ImageUpload from '../../shared/ui/ImageUpload';
@@ -21,25 +21,25 @@ export default function CategoriesView({
   products,
   setProducts
 }: CategoriesViewProps) {
-  // Input states for adding new category (now in modal)
+
   const [newCatName, setNewCatName] = useState('');
   const [newCatImage, setNewCatImage] = useState('');
   const [newCatStatus, setNewCatStatus] = useState<'active' | 'inactive'>('active');
 
-  // Modal open state
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Drawer selected category
+
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
 
-  // Delete category overlay states
+
   const [deletingCat, setDeletingCat] = useState<Category | null>(null);
   const [transferTarget, setTransferTarget] = useState<string>('Uncategorized');
   const [categorySearch, setCategorySearch] = useState('');
   const [categoryStatusFilter, setCategoryStatusFilter] = useState('All');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
-  // Add Category Handler
+
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = newCatName.trim();
@@ -67,7 +67,7 @@ export default function CategoriesView({
     }
   };
 
-  // Toggle active/inactive status from list
+
   const handleToggleStatus = async (id: string, currentStatus: 'active' | 'inactive') => {
     const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
     const category = categories.find(cat => cat.id === id);
@@ -99,7 +99,7 @@ export default function CategoriesView({
     }
   };
 
-  // Save changes from CategoryDrawer
+
   const handleSaveCategory = async (updatedCategory: Category) => {
     const oldCategory = categories.find(c => c.id === updatedCategory.id);
     if (!oldCategory) return;
@@ -128,15 +128,15 @@ export default function CategoriesView({
     }
   };
 
-  // Open Delete Dialog
+
   const handleOpenDelete = (cat: Category) => {
     setDeletingCat(cat);
-    // Suggest first available category that is not the one being deleted
+
     const available = categories.filter(c => c.id !== cat.id);
     setTransferTarget(available[0]?.name || 'Uncategorized');
   };
 
-  // Confirm Delete and migrate products
+
   const handleConfirmDelete = async () => {
     if (!deletingCat) return;
 
@@ -193,7 +193,7 @@ export default function CategoriesView({
     }
   };
 
-  // Calculate statistics for each category
+
   const getCategoryStats = (catName: string) => {
     const catProducts = products.filter(p => p.category === catName);
     const count = catProducts.length;
@@ -237,7 +237,6 @@ export default function CategoriesView({
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* HEADER SECTION */}
       <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-5 rounded-2xl border border-blue-100/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -294,14 +293,13 @@ export default function CategoriesView({
           />
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white shadow-sm transition-colors hover:bg-blue-700"
+            className="flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" /> Thêm danh mục
           </button>
         </div>
       </div>
 
-      {/* NEW CATEGORY MODAL DIALOG */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xl p-6 w-full max-w-md space-y-4 animate-scale-up">
@@ -373,7 +371,6 @@ export default function CategoriesView({
         </div>
       )}
 
-      {/* DELETE & TRANSFER DIALOG OVERLAY */}
       {deletingCat && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4">
@@ -436,7 +433,6 @@ export default function CategoriesView({
         </div>
       )}
 
-      {/* CATEGORIES DATA TABLE */}
       <div className="hidden md:block bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <span className="text-xs font-bold text-slate-500 uppercase">Danh Sách Danh Mục Hiện Tại</span>
@@ -484,7 +480,6 @@ export default function CategoriesView({
                         className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    {/* Image Column */}
                     <td className="px-5 py-3 w-20">
                       {cat.image ? (
                         <img 
@@ -500,7 +495,6 @@ export default function CategoriesView({
                       )}
                     </td>
                     
-                    {/* Name & ID Column */}
                     <td className="px-5 py-3 font-semibold text-slate-900">
                       <div>
                         <span className="block hover:text-blue-600 transition-colors text-slate-900 font-bold">{cat.name}</span>
@@ -508,29 +502,24 @@ export default function CategoriesView({
                       </div>
                     </td>
 
-                    {/* Stats Product Count Column */}
                     <td className="px-5 py-3 text-center">
                       <span className="font-extrabold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg text-xs">
                         {stats.count}
                       </span>
                     </td>
 
-                    {/* Total Inventory Column */}
                     <td className="px-5 py-3 text-right font-semibold text-slate-800">
                       {stats.totalInventory} sản phẩm
                     </td>
 
-                    {/* Created Date Column */}
                     <td className="px-5 py-3 text-slate-500 font-mono text-[10px]">
                       {cat.createdAt ? new Date(cat.createdAt).toLocaleString('vi-VN', { hour12: false }) : '---'}
                     </td>
 
-                    {/* Updated Date Column */}
                     <td className="px-5 py-3 text-slate-500 font-mono text-[10px]">
                       {cat.updatedAt ? new Date(cat.updatedAt).toLocaleString('vi-VN', { hour12: false }) : '---'}
                     </td>
 
-                    {/* Status Column */}
                     <td className="px-5 py-3 text-center">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
                         cat.status === 'active'
@@ -541,7 +530,6 @@ export default function CategoriesView({
                       </span>
                     </td>
 
-                    {/* Action controls Column (Toggle Switch) */}
                     <td className="px-5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-2">
                         <button
@@ -575,7 +563,6 @@ export default function CategoriesView({
         </div>
       </div>
 
-      {/* Mobile Card Layout for Categories */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
         {filteredCategories.map((cat) => {
           const stats = getCategoryStats(cat.name);
@@ -670,7 +657,6 @@ export default function CategoriesView({
         )}
       </div>
 
-      {/* CATEGORY DETAIL SIDE DRAWER */}
       <CategoryDrawer
         category={activeCategory}
         isOpen={activeCategory !== null}

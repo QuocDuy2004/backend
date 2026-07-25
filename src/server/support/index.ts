@@ -11,7 +11,7 @@ export async function getSupportTickets(_req: Request, res: Response) {
   try {
     res.json({ ok: true, tickets: await listSupportTickets() });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch support tickets';
+    const message = error instanceof Error ? error.message : 'Không thể lấy danh sách ticket hỗ trợ.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -19,10 +19,10 @@ export async function getSupportTickets(_req: Request, res: Response) {
 export async function getSupportTicket(req: Request, res: Response) {
   try {
     const ticket = await findSupportTicket(req.params.id);
-    if (!ticket) return res.status(404).json({ ok: false, message: 'Support ticket not found.' });
+    if (!ticket) return res.status(404).json({ ok: false, message: 'Không tìm thấy ticket hỗ trợ.' });
     res.json({ ok: true, ticket });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch support ticket';
+    const message = error instanceof Error ? error.message : 'Không thể lấy ticket hỗ trợ.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -32,7 +32,7 @@ export async function upsertSupportTicketHandler(req: Request, res: Response) {
     const ticket = await upsertSupportTicket(req.body);
     res.json({ ok: true, ticket });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to save support ticket';
+    const message = error instanceof Error ? error.message : 'Không thể lưu ticket hỗ trợ.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -40,10 +40,10 @@ export async function upsertSupportTicketHandler(req: Request, res: Response) {
 export async function updateSupportTicketHandler(req: Request, res: Response) {
   try {
     const ticket = await updateSupportTicket(req.params.id, req.body);
-    if (!ticket) return res.status(404).json({ ok: false, message: 'Support ticket not found.' });
+    if (!ticket) return res.status(404).json({ ok: false, message: 'Không tìm thấy ticket hỗ trợ.' });
     res.json({ ok: true, ticket });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update support ticket';
+    const message = error instanceof Error ? error.message : 'Không thể cập nhật ticket hỗ trợ.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -51,7 +51,7 @@ export async function updateSupportTicketHandler(req: Request, res: Response) {
 export async function addSupportMessageHandler(req: Request, res: Response) {
   try {
     if (!req.body?.id || !req.body?.sender || !req.body?.text) {
-      return res.status(400).json({ ok: false, message: 'id, sender and text are required.' });
+      return res.status(400).json({ ok: false, message: 'id, sender và text là bắt buộc.' });
     }
 
     const ticket = await addSupportMessage({
@@ -65,7 +65,7 @@ export async function addSupportMessageHandler(req: Request, res: Response) {
 
     res.status(201).json({ ok: true, ticket });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to add support message';
+    const message = error instanceof Error ? error.message : 'Không thể thêm tin nhắn hỗ trợ.';
     res.status(500).json({ ok: false, message });
   }
 }

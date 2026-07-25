@@ -1,16 +1,15 @@
 import mysql from 'mysql2/promise';
 import { env } from '../server/config/env';
 
+const { host, port, user, password, name: database, ssl, connectionLimit } = env.database;
+
 export const databaseConfig = {
-  host: env.database.host,
-  port: env.database.port,
-  user: env.database.user,
-  password: env.database.password,
-  database: env.database.name,
+  host, port, user, password, database,
   waitForConnections: true,
-  connectionLimit: env.database.connectionLimit,
+  connectionLimit,
   queueLimit: 0,
   namedPlaceholders: true,
+  ...(ssl && { ssl: { rejectUnauthorized: false } }),
 };
 
 export const pool = mysql.createPool(databaseConfig);

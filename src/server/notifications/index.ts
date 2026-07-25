@@ -30,7 +30,7 @@ export async function getNotifications(req: Request, res: Response) {
 
     res.json({ ok: true, notifications });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch notifications';
+    const message = error instanceof Error ? error.message : 'Không thể lấy danh sách thông báo.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -43,7 +43,7 @@ export async function createNotificationHandler(req: Request, res: Response) {
   if (!title || !message) {
     return res.status(400).json({
       ok: false,
-      message: 'title and message are required.',
+      message: 'Tiêu đề và nội dung là bắt buộc.',
     });
   }
 
@@ -60,7 +60,7 @@ export async function createNotificationHandler(req: Request, res: Response) {
 
     res.status(201).json({ ok: true, notification });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create notification';
+    const message = error instanceof Error ? error.message : 'Không thể tạo thông báo.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -69,14 +69,14 @@ export async function markReadHandler(req: Request, res: Response) {
   const userId = normalizeText(req.body.userId || req.query.userId);
 
   if (!userId) {
-    return res.status(400).json({ ok: false, message: 'userId is required.' });
+    return res.status(400).json({ ok: false, message: 'userId là bắt buộc.' });
   }
 
   try {
     await markUserNotificationRead(req.params.id, userId, req.body.isRead !== false);
     res.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update notification';
+    const message = error instanceof Error ? error.message : 'Không thể cập nhật thông báo.';
     res.status(500).json({ ok: false, message });
   }
 }
@@ -86,7 +86,7 @@ export async function archiveNotificationHandler(req: Request, res: Response) {
     await archiveNotification(req.params.id);
     res.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to archive notification';
+    const message = error instanceof Error ? error.message : 'Không thể lưu trữ thông báo.';
     res.status(500).json({ ok: false, message });
   }
 }

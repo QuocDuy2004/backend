@@ -1,0 +1,92 @@
+# render.yaml – Infrastructure as Code cho Render.com
+# Docs: https://render.com/docs/render-yaml-spec
+#
+# Stack:
+#   Backend API + Admin SPA  →  Render Web Service (free)
+#   MySQL Database           →  Aiven free tier (https://aiven.io)
+#
+# Cách deploy:
+#   1. Push repo lên GitHub.
+#   2. Render Dashboard → New → Blueprint → chọn repo.
+#   3. Render đọc file này và tạo service.
+#   4. Điền các Secret env vars trên Render UI (những key có sync: false).
+#
+# Custom domain:
+#   Service → Settings → Custom Domains → thêm domain
+#   → Cập nhật APP_URL env var → Redeploy
+
+services:
+  - type: web
+    name: duymedia-backend
+    runtime: node
+    region: singapore       # Region gần Việt Nam nhất hiện có trên Render
+    plan: free              # Nâng lên "starter" ($7/tháng) để tắt spin-down
+
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/server.cjs
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Thay bằng custom domain của bạn sau khi thêm vào Render Dashboard.
+      # Ví dụ: https://api.duymedia.com
+      # Nếu chưa có domain, dùng URL Render tự cấp: https://duymedia-backend.onrender.com
+      - key: APP_URL
+        sync: false
+
+      # URL app frontend / Expo – dùng cho CORS và redirect thanh toán
+      - key: FRONTEND_URL
+        sync: false
+
+      # ── Database – Aiven MySQL ──────────────────────────────────────────
+      # Lấy từ aiven.io → Console → MySQL service → Overview
+      - key: DB_HOST
+        sync: false
+
+      - key: DB_PORT
+        value: "3306"
+
+      - key: DB_USER
+        value: "avnadmin"
+
+      - key: DB_PASSWORD
+        sync: false
+
+      - key: DB_DATABASE
+        value: "defaultdb"
+
+      - key: DB_CONNECTION_LIMIT
+        value: "5"
+
+      # Aiven bắt buộc SSL
+      - key: DB_SSL
+        value: "true"
+
+      # ── Auth ───────────────────────────────────────────────────────────
+      - key: JWT_SECRET
+        sync: false
+
+      - key: JWT_EXPIRES_IN
+        value: "7d"
+
+      # ── Optional secrets ───────────────────────────────────────────────
+      - key: GEMINI_API_KEY
+        sync: false
+
+      - key: VNPAY_TMN_CODE
+        sync: false
+
+      - key: VNPAY_HASH_SECRET
+        sync: false
+
+      - key: MOMO_PARTNER_CODE
+        sync: false
+
+      - key: MOMO_ACCESS_KEY
+        sync: false
+
+      - key: MOMO_SECRET_KEY
+        sync: false

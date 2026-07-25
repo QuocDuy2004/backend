@@ -1,9 +1,13 @@
 ﻿import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  // Đọc .env.local và .env để lấy URL backend cho proxy
+  const env = loadEnv(mode, process.cwd(), '');
+  const apiTarget = env.APP_URL || env.VITE_APP_URL || 'http://localhost:3000';
+
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
@@ -12,14 +16,16 @@ export default defineConfig(() => {
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify: file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // Proxy /api và /webhook sang Express backend
       proxy: {
         '/api': {
-          target: 'http://localhost:3000',
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        '/webhook': {
+          target: apiTarget,
           changeOrigin: true,
         },
       },
@@ -39,4 +45,3 @@ export default defineConfig(() => {
     },
   };
 });
-

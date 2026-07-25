@@ -5,7 +5,6 @@ import * as banners from '../banners';
 import * as categories from '../categories';
 import * as notifications from '../notifications';
 import * as orders from '../orders';
-import * as orderSync from '../order-sync';
 import * as marketing from '../marketing';
 import * as payments from '../payments';
 import * as products from '../products';
@@ -30,7 +29,6 @@ const routeGroups = [
   { basePath: '/orders', module: 'orders', database: true },
   { basePath: '/vouchers', module: 'vouchers', database: true },
   { basePath: '/ai', module: 'ai', database: true },
-  { basePath: '/order-sync', module: 'order-sync', database: true },
 ];
 
 const healthRouter = Router();
@@ -143,12 +141,6 @@ aiRouter.post('/suggest-reply', ai.suggestReply);
 aiRouter.post('/customer-support', ai.customerSupportChat);
 aiRouter.post('/demand-forecast', ai.forecastDemand);
 
-const orderSyncRouter = Router();
-orderSyncRouter.get('/list-order', orderSync.listOrders);
-orderSyncRouter.get('/preview', orderSync.previewSheetRows);
-orderSyncRouter.get('/sheet-orders', orderSync.getSheetOrders);
-orderSyncRouter.post('/append-list-orders-to-sheet', orderSync.appendListOrders);
-orderSyncRouter.post('/list-order-to-sheet', orderSync.syncListOrder);
 
 export const apiRouter = Router();
 
@@ -170,4 +162,3 @@ apiRouter.use('/marketing', marketingRouter);
 apiRouter.use('/orders', ordersRouter);
 apiRouter.use('/vouchers', vouchersRouter);
 apiRouter.use('/ai', aiRouter);
-apiRouter.use('/order-sync', orderSyncRouter);

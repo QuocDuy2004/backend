@@ -21,11 +21,12 @@ async function createServerConnection() {
   assertSafeDatabaseName(databaseName);
 
   return mysql.createConnection({
-    host: databaseConfig.host,
-    port: databaseConfig.port,
-    user: databaseConfig.user,
+    host:     databaseConfig.host,
+    port:     databaseConfig.port,
+    user:     databaseConfig.user,
     password: databaseConfig.password,
     multipleStatements: true,
+    ...(databaseConfig.ssl && { ssl: { rejectUnauthorized: false } }),
   });
 }
 

@@ -1,17 +1,15 @@
-﻿import type { Dispatch, SetStateAction } from 'react';
+﻿import { useState } from 'react';
 import { CreditCard, DollarSign, Download, Layers, Search, ShoppingCart, Truck } from 'lucide-react';
 import type { Order } from '../../../types';
 import { CustomSelect } from '../../shared';
 import { formatVnd } from '../../../lib/currency';
 
+// ─── Props ────────────────────────────────────────────────────────────────────
+
 type OrdersPageProps = {
-  filteredOrders: Order[];
-  orderSearch: string;
-  setOrderSearch: Dispatch<SetStateAction<string>>;
-  orderStatusFilter: string;
-  setOrderStatusFilter: Dispatch<SetStateAction<string>>;
-  onExportExcel: () => void;
+  orders: Order[];
   onSelectOrder: (order: Order) => void;
+  onExportExcel: (orders: Order[]) => void;
 };
 
 const formatOrderDateTime = (value: string) =>
@@ -25,18 +23,29 @@ const formatOrderDateTime = (value: string) =>
     hour12: false,
   });
 
-export function OrdersPage({
-  filteredOrders,
-  orderSearch,
-  setOrderSearch,
-  orderStatusFilter,
-  setOrderStatusFilter,
-  onExportExcel: handleExportExcel,
-  onSelectOrder: setActiveOrder,
-}: OrdersPageProps) {
-  const shippingCount = filteredOrders.filter(order => order.status === 'shipping').length;
-  const pendingCount = filteredOrders.filter(order => order.status === 'pending').length;
-  const totalRevenue = filteredOrders.reduce((total, order) => total + order.total, 0);
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function OrdersPage({ orders, onSelectOrder, onExportExcel }: OrdersPageProps) {
+  const [search, setSearch]           = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+
+  // ── Filter logic ──────────────────────────────────────────────────────────
+
+  const filtered = orders.filter(order => {
+    const q = search.toLowerCase();
+    const matchesSearch =
+      order.id.toLowerCase().includes(q) ||
+      order.customerName.toLowerCase().includes(q) ||
+      order.customerEmail.toLowerCase().includes(q);
+    const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // ── KPI calculations ──────────────────────────────────────────────────────
+
+  const shippingCount = filtered.filter(order => order.status === 'shipping').length;
+  const pendingCount = filtered.filter(order => order.status === 'pending').length;
+  const totalRevenue = filtered.reduce((total, order) => total + order.total, 0);
 
   return (
           <div className="space-y-6 animate-fade-in">
@@ -54,7 +63,7 @@ export function OrdersPage({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
-                { label: 'Tổng đơn hàng', value: filteredOrders.length.toLocaleString('vi-VN'), icon: ShoppingCart, tone: 'border-blue-100 bg-blue-50 text-blue-700' },
+                { label: 'Tổng đơn hàng', value: filtered.length.toLocaleString('vi-VN'), icon: ShoppingCart, tone: 'border-blue-100 bg-blue-50 text-blue-700' },
                 { label: 'Doanh thu', value: formatVnd(totalRevenue), icon: DollarSign, tone: 'border-emerald-100 bg-emerald-50 text-emerald-700' },
                 { label: 'Đang giao', value: shippingCount.toLocaleString('vi-VN'), icon: Truck, tone: 'border-indigo-100 bg-indigo-50 text-indigo-700' },
                 { label: 'Chờ xử lý', value: `${pendingCount} đơn`, icon: CreditCard, tone: 'border-amber-100 bg-amber-50 text-amber-700' },
@@ -79,15 +88,15 @@ export function OrdersPage({
                   type="text"
                   placeholder="Tìm kiếm đơn hàng theo mã giao dịch, khách hàng..."
                   className="w-full bg-transparent text-xs text-slate-800 outline-none"
-                  value={orderSearch}
-                  onChange={(e) => setOrderSearch(e.target.value)}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
 
               <div className="flex w-full flex-wrap items-center justify-end gap-2 lg:w-auto">
                   <CustomSelect
-                    value={orderStatusFilter}
-                    onChange={setOrderStatusFilter}
+                    value={statusFilter}
+                    onChange={setStatusFilter}
                     options={[
                       { value: 'All', label: 'Tất cả trạng thái' },
                       { value: 'pending', label: 'Chờ xử lý (Pending)' },
@@ -101,7 +110,7 @@ export function OrdersPage({
                   />
 
                 <button
-                  onClick={handleExportExcel}
+                  onClick={() => onExportExcel(filtered)}
                   className="p-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" /> Xuất nhật ký
@@ -125,8 +134,8 @@ export function OrdersPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
-                  {filteredOrders.map(order => (
-                    <tr key={order.id} className="cursor-pointer transition-colors hover:bg-blue-50/35" onClick={() => setActiveOrder(order)}>
+                  {filtered.map(order => (
+                    <tr key={order.id} className="cursor-pointer transition-colors hover:bg-blue-50/35" onClick={() => onSelectOrder(order)}>
                       <td className="px-5 py-3 font-mono font-bold text-blue-700 hover:underline">{order.id}</td>
                       <td className="px-5 py-3 text-slate-500 font-semibold">{formatOrderDateTime(order.date)}</td>
                       <td className="px-5 py-3">
@@ -141,8 +150,8 @@ export function OrdersPage({
                       <td className="px-5 py-3 text-right font-mono font-extrabold text-slate-900">{formatVnd(order.total)}</td>
                       <td className="px-5 py-3 text-center">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
-                          order.fraudRisk === 'high' 
-                            ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse' 
+                          order.fraudRisk === 'high'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse'
                             : order.fraudRisk === 'medium'
                             ? 'bg-amber-50 text-amber-700 border-amber-200'
                             : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -169,8 +178,8 @@ export function OrdersPage({
                       </td>
                       <td className="px-5 py-3 text-center">
                         <span className={`inline-block px-1.5 py-0.5 rounded-sm text-[9px] font-extrabold uppercase tracking-wide border ${
-                          order.paymentStatus === 'paid' 
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
+                          order.paymentStatus === 'paid'
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                             : 'bg-amber-100 text-amber-800 border-amber-200'
                         }`}>
                           {order.paymentStatus === 'paid' ? 'ĐÃ TRẢ' : 'CHƯA TRẢ'}
@@ -178,7 +187,7 @@ export function OrdersPage({
                       </td>
                     </tr>
                   ))}
-                  {filteredOrders.length === 0 && (
+                  {filtered.length === 0 && (
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-slate-400 text-sm">
                         Không có lịch sử đơn hàng nào khớp với tìm kiếm hiện tại.
@@ -191,11 +200,11 @@ export function OrdersPage({
 
             {/* Mobile Card Layout for Orders */}
             <div className="grid grid-cols-1 gap-4 md:hidden">
-              {filteredOrders.map(order => (
-                <div 
+              {filtered.map(order => (
+                <div
                   key={order.id}
                   className="bg-white rounded-xl border border-slate-200 p-4 space-y-3 shadow-xs hover:border-slate-300 transition-all cursor-pointer"
-                  onClick={() => setActiveOrder(order)}
+                  onClick={() => onSelectOrder(order)}
                 >
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                     <div>
@@ -227,8 +236,8 @@ export function OrdersPage({
                     <div className="text-right">
                       <span className="text-slate-400 block text-[10px] uppercase font-semibold">Rủi ro AI</span>
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border mt-0.5 ${
-                        order.fraudRisk === 'high' 
-                          ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse' 
+                        order.fraudRisk === 'high'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse'
                           : order.fraudRisk === 'medium'
                           ? 'bg-amber-50 text-amber-700 border-amber-200'
                           : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -257,8 +266,8 @@ export function OrdersPage({
                     <div className="text-right">
                       <span className="text-slate-400 block text-[10px] uppercase font-semibold">Thanh toán</span>
                       <span className={`inline-block px-1.5 py-0.5 rounded-sm text-[8px] font-extrabold uppercase tracking-wide border mt-1 ${
-                        order.paymentStatus === 'paid' 
-                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200' 
+                        order.paymentStatus === 'paid'
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                           : 'bg-amber-100 text-amber-800 border-amber-200'
                       }`}>
                         {order.paymentStatus === 'paid' ? 'ĐÃ TRẢ' : 'CHƯA TRẢ'}
@@ -267,7 +276,7 @@ export function OrdersPage({
                   </div>
                 </div>
               ))}
-              {filteredOrders.length === 0 && (
+              {filtered.length === 0 && (
                 <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400 text-sm">
                   Không có lịch sử đơn hàng nào khớp với tìm kiếm hiện tại.
                 </div>
@@ -278,5 +287,4 @@ export function OrdersPage({
 }
 
 export default OrdersPage;
-
 

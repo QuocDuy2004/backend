@@ -1,14 +1,12 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
-import { 
-  mockProducts, mockOrders, mockCampaigns, mockReviews
-} from './data/mockData';
+import { mockProducts, mockOrders, mockCampaigns, mockReviews } from './data/mockData';
 import { Product, Category, Order, Customer, SupportTicket, MarketingCampaign, ProductReview } from './types';
 import LoginPage, { type AuthSession } from './components/auth';
 import Sidebar from './components/layout/Sidebar';
 import CommandPalette from './components/layout/CommandPalette';
-import { adminApi } from './lib/api';
-import { parseProductAttributes } from './lib/productAttributes';
+import { productsApi, categoriesApi, usersApi, aiApi } from './lib/api';
 import { exportProductsToExcel } from './lib/productExcel';
+import { exportOrdersToExcel } from './lib/orderExcel';
 
 const AnalyticsView = lazy(() => import('./components/features/analytics'));
 const BannersView = lazy(() => import('./components/features/banners'));
@@ -29,42 +27,8 @@ const UserForm = lazy(() => import('./components/features/customers/UserForm'));
 
 type AuthPortalRole = 'admin' | 'seller';
 
-type ApiResponse<T> = { ok: boolean; message?: string } & T;
-
 const AUTH_STORAGE_KEY = 'omni_auth_session';
 const LEGACY_AUTH_STORAGE_KEY = 'omni_auth_user';
-
-const parseProductSpecification = (text: string) =>
-  (() => {
-    const content = text.trim();
-    if (!content) return {};
-
-    try {
-      const parsed = JSON.parse(content);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return Object.entries(parsed as Record<string, unknown>).reduce<Record<string, string>>((spec, [key, value]) => {
-          const name = key.trim();
-          const textValue = String(value ?? '').trim();
-          if (name && textValue) spec[name] = textValue;
-          return spec;
-        }, {});
-      }
-    } catch {
-      // Fall through to line import format.
-    }
-
-    return content
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .reduce<Record<string, string>>((spec, line) => {
-        const [key, ...valueParts] = line.split(':');
-        const name = key.trim();
-        const value = valueParts.join(':').trim();
-        if (name && value) spec[name] = value;
-        return spec;
-      }, {});
-  })();
 
 const getLoginRoleFromPath = (): AuthPortalRole | null => {
   const path = window.location.pathname.toLowerCase();
@@ -126,7 +90,7 @@ export default function App() {
   useEffect(() => {
     const cachedSession = readStoredAuthSession();
     if (cachedSession?.user?.email) {
-      adminApi.get<ApiResponse<{ user: Customer }>>(`/users/email/${encodeURIComponent(cachedSession.user.email)}`)
+      usersApi.getByEmail(cachedSession.user.email)
         .then(data => {
           if (data.ok) {
             const refreshedSession = { ...cachedSession, user: data.user };
@@ -150,7 +114,7 @@ export default function App() {
       try {
         const { email } = JSON.parse(cachedUser);
         if (email) {
-          adminApi.get<ApiResponse<{ user: Customer }>>(`/users/email/${encodeURIComponent(email)}`)
+          usersApi.getByEmail(email)
             .then(data => {
               if (data.ok) {
                 const migratedSession = { token: '', user: data.user };
@@ -185,7 +149,7 @@ export default function App() {
         return JSON.parse(cached);
       } catch (e) {}
     }
-    
+
     // Fallback/Migration
     const oldCached = localStorage.getItem('omni_categories');
     let names = ['Thời trang', 'Điện tử', 'Thể thao', 'Phụ kiện', 'Gia dụng', 'Activewear', 'Electronics', 'Fitness', 'Accessories'];
@@ -250,29 +214,14 @@ export default function App() {
   const [orders, setOrders] = useState<Order[]>(mockOrders);
   const [users, setUsers] = useState<Customer[]>([]);
   useEffect(() => {
-    adminApi.get<ApiResponse<{ categories: Category[] }>>('/categories')
-      .then(data => {
-        if (data.ok) {
-          setCategories(data.categories);
-          if (data.categories[0]?.name) {
-            setNewProdCategory(data.categories[0].name);
-          }
-        }
-      });
+    categoriesApi.list()
+      .then(data => { if (data.ok) setCategories(data.categories); });
 
-    adminApi.get<ApiResponse<{ products: Product[] }>>('/products')
-      .then(data => {
-        if (data.ok) {
-          setProducts(data.products);
-        }
-      });
+    productsApi.list()
+      .then(data => { if (data.ok) setProducts(data.products); });
 
-    adminApi.get<ApiResponse<{ users: Customer[] }>>('/users')
-      .then(data => {
-        if (data.ok) {
-          setUsers(data.users);
-        }
-      });
+    usersApi.list()
+      .then(data => { if (data.ok) setUsers(data.users); });
   }, []);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(mockCampaigns);
@@ -286,25 +235,12 @@ export default function App() {
   const [editingUser, setEditingUser] = useState<Customer | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-  // New product inline form modal state
+  // New product modal
   const [isNewProductOpen, setIsNewProductOpen] = useState(false);
-  const [newProdName, setNewProdName] = useState('');
-  const [newProdSKU, setNewProdSKU] = useState('');
-  const [newProdCategory, setNewProdCategory] = useState(() => categories[0]?.name || 'Thời trang');
-  const [newProdPrice, setNewProdPrice] = useState(50000);
-  const [newProdInventory, setNewProdInventory] = useState(100);
-  const [newProdImages, setNewProdImages] = useState<string[]>([]);
-  const [newProdStatus, setNewProdStatus] = useState<'active' | 'draft' | 'archived'>('active');
-  const [newProdIsBestSeller, setNewProdIsBestSeller] = useState(false);
-  const [newProdDescription, setNewProdDescription] = useState('');
-  const [newProdAttributesText, setNewProdAttributesText] = useState('');
-  const [newProdSpecificationText, setNewProdSpecificationText] = useState('');
 
   // Search & Filter state for table lists
   const [prodSearch, setProdSearch] = useState('');
   const [prodCatFilter, setProdCatFilter] = useState('All');
-  const [orderSearch, setOrderSearch] = useState('');
-  const [orderStatusFilter, setOrderStatusFilter] = useState('All');
   const [custSearch, setCustSearch] = useState('');
   const [custTierFilter, setCustTierFilter] = useState('All');
 
@@ -336,9 +272,8 @@ export default function App() {
   // Handlers for state updates from drawer modifications
   const handleSaveProduct = async (updated: Product) => {
     try {
-      const data = await adminApi.put<ApiResponse<{ product: Product }>>(`/products/${updated.id}`, updated);
+      const data = await productsApi.update(updated.id, updated);
       if (!data.ok) throw new Error(data.message || 'Failed to update product');
-
       setProducts(prev => prev.map(p => p.id === updated.id ? data.product : p));
       setActiveProduct(data.product);
     } catch (error: any) {
@@ -369,9 +304,8 @@ export default function App() {
     if (!product) return;
 
     try {
-      const data = await adminApi.put<ApiResponse<{ product: Product }>>(`/products/${id}`, { ...product, status: nextStatus });
+      const data = await productsApi.update(id, { ...product, status: nextStatus });
       if (!data.ok) throw new Error(data.message || 'Failed to update product');
-
       setProducts(prev => prev.map(p => p.id === id ? data.product : p));
     } catch (error: any) {
       alert(`Error: ${error.message}`);
@@ -387,23 +321,20 @@ export default function App() {
 
   const handleConfirmDeleteProduct = async () => {
     if (!productToDelete) return;
-
     try {
-      const data = await adminApi.delete<ApiResponse<Record<string, never>>>(`/products/${productToDelete.id}`);
+      const data = await productsApi.remove(productToDelete.id);
       if (!data.ok) throw new Error(data.message || 'Failed to delete product');
-
       setProducts(prev => prev.filter(p => p.id !== productToDelete.id));
       setSelectedProductIds(prev => prev.filter(id => id !== productToDelete.id));
-      if (activeProduct?.id === productToDelete.id) {
-        setActiveProduct(null);
-      }
+      if (activeProduct?.id === productToDelete.id) setActiveProduct(null);
       setProductToDelete(null);
     } catch (error: any) {
       alert(`Error: ${error.message}`);
     }
   };
+
   const handleCreateUser = (newUser: Customer) => {
-    adminApi.post<ApiResponse<{ user: Customer }>>('/users', newUser)
+    usersApi.create(newUser)
       .then(data => {
         if (data.ok) {
           setUsers(prev => [data.user, ...prev]);
@@ -416,14 +347,13 @@ export default function App() {
 
   const handleUpdateUser = async (updatedUser: Customer) => {
     try {
-      const data = await adminApi.put<ApiResponse<{ user: Customer }>>(`/users/${updatedUser.id}`, updatedUser);
+      const data = await usersApi.update(updatedUser.id, updatedUser);
       if (data.ok) {
-        setUsers(prev => prev.map(u => (u.id === updatedUser.id ? data.user : u)));
+        setUsers(prev => prev.map(u => u.id === updatedUser.id ? data.user : u));
         setEditingUser(null);
-        setActiveCustomer(prev => (prev?.id === updatedUser.id ? data.user : prev));
+        setActiveCustomer(prev => prev?.id === updatedUser.id ? data.user : prev);
         return data.user;
       }
-
       alert(`Error: ${data.message}`);
     } catch (error: any) {
       alert(`Error: ${error.message}`);
@@ -438,7 +368,7 @@ export default function App() {
     try {
       const updatedUsers = await Promise.all(
         selectedUsers.map(async (user) => {
-          const data = await adminApi.put<ApiResponse<{ user: Customer }>>(`/users/${user.id}`, { ...user, status });
+          const data = await usersApi.update(user.id, { ...user, status });
           if (!data.ok) throw new Error(data.message || 'Failed to update user');
           return data.user as Customer;
         })
@@ -459,7 +389,7 @@ export default function App() {
     try {
       await Promise.all(
         userIds.map(async (userId) => {
-          const data = await adminApi.delete<ApiResponse<Record<string, never>>>(`/users/${userId}`);
+          const data = await usersApi.remove(userId);
           if (!data.ok) throw new Error(data.message || 'Failed to delete user');
         })
       );
@@ -484,7 +414,7 @@ export default function App() {
 
   const handleDeleteUser = (userId: string) => {
     if (window.confirm('Bạn có chắc muốn xóa khách hàng này?')) {
-      adminApi.delete<ApiResponse<Record<string, never>>>(`/users/${userId}`)
+      usersApi.remove(userId)
         .then(data => {
           if (data.ok) {
             setUsers(prev => prev.filter(u => u.id !== userId));
@@ -495,128 +425,17 @@ export default function App() {
     }
   };
 
-  // Add Product form handler
-  const handleCreateProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newProdName.trim() || !newProdSKU.trim()) return;
-
-    const nowStr = new Date().toISOString();
-    const newProd: Product = {
-      id: `prod_${Date.now()}`,
-      sku: newProdSKU.toUpperCase().replace(/\s+/g, ''),
-      name: newProdName,
-      category: newProdCategory,
-      brand: 'InHouse',
-      price: newProdPrice,
-      originalPrice: newProdPrice,
-      discountPrice: newProdPrice,
-      cost: parseFloat((newProdPrice * 0.4).toFixed(2)),
-      inventory: newProdInventory,
-      warehouseStock: { MAIN: newProdInventory },
-      rating: 0,
-      sales: 0,
-      status: newProdStatus,
-      createdAt: nowStr,
-      updatedAt: nowStr,
-      images: newProdImages,
-      description: newProdDescription.trim(),
-      attributes: parseProductAttributes(newProdAttributesText),
-      specification: parseProductSpecification(newProdSpecificationText),
-      isBestSeller: newProdIsBestSeller,
-      tags: [newProdCategory.toLowerCase()]
-    };
-
+  // Quick excel export
+  const handleExportExcel = async (ordersToExport?: Order[]) => {
     try {
-      const data = await adminApi.post<ApiResponse<{ product: Product }>>('/products', newProd);
-      if (!data.ok) throw new Error(data.message || 'Failed to create product');
+      if (ordersToExport) {
+        await exportOrdersToExcel(ordersToExport);
+        return;
+      }
 
-      setProducts(prev => [data.product, ...prev]);
-      setIsNewProductOpen(false);
-      setNewProdName('');
-      setNewProdSKU('');
-      setNewProdImages([]);
-      setNewProdStatus('active');
-      setNewProdIsBestSeller(false);
-      setNewProdDescription('');
-      setNewProdAttributesText('');
-      setNewProdSpecificationText('');
-    } catch (error: any) {
-      alert(`Error: ${error.message}`);
-    }
-  };
-
-  // Quick excel mocks
-  const handleExportExcel = async () => {
-    if (currentSection !== 'products') {
-      alert('Tính năng xuất Excel hiện hỗ trợ danh sách sản phẩm.');
-      return;
-    }
-
-    try {
       await exportProductsToExcel(filteredProducts);
     } catch (error: any) {
       alert(`Không thể xuất Excel: ${error.message || 'Vui lòng thử lại.'}`);
-    }
-  };
-
-  // Bulk actions
-  const handleBulkActivate = () => {
-    setProducts(prev => prev.map(p => selectedProductIds.includes(p.id) ? { ...p, status: 'active' } : p));
-    setSelectedProductIds([]);
-    alert('Đã kích hoạt các sản phẩm đã chọn.');
-  };
-
-  const handleBulkArchive = () => {
-    setProducts(prev => prev.map(p => selectedProductIds.includes(p.id) ? { ...p, status: 'archived' } : p));
-    setSelectedProductIds([]);
-    alert('Đã lưu trữ các sản phẩm đã chọn.');
-  };
-
-  const handleBulkDeleteProducts = async () => {
-    if (selectedProductIds.length === 0) return;
-
-    const confirmed = window.confirm(`Bạn có chắc muốn xóa ${selectedProductIds.length} sản phẩm đã chọn?`);
-    if (!confirmed) return;
-
-    try {
-      await Promise.all(
-        selectedProductIds.map(async (id) => {
-          const data = await adminApi.delete<ApiResponse<Record<string, never>>>(`/products/${id}`);
-          if (!data.ok) throw new Error(data.message || 'Failed to delete product');
-        })
-      );
-
-      setProducts(prev => prev.filter(product => !selectedProductIds.includes(product.id)));
-      if (activeProduct && selectedProductIds.includes(activeProduct.id)) {
-        setActiveProduct(null);
-      }
-      setSelectedProductIds([]);
-    } catch (error: any) {
-      alert(`Error: ${error.message}`);
-    }
-  };
-
-  // Demand forecasting simulation
-  const [forecastingId, setForecastingId] = useState<string | null>(null);
-  const [forecastResult, setForecastResult] = useState<{ [id: string]: any }>({});
-
-  const handlePredictDemand = async (prod: Product) => {
-    setForecastingId(prod.id);
-    try {
-      const data = await adminApi.post<any>('/ai/demand-forecast', {
-          name: prod.name,
-          category: prod.category,
-          sku: prod.sku,
-          currentStock: prod.inventory,
-          monthlySales: Math.round(prod.sales / 12) || 45
-      });
-      if (data.error) throw new Error(data.error);
-
-      setForecastResult(prev => ({ ...prev, [prod.id]: data }));
-    } catch (err: any) {
-      alert(`AI Logistics forecast failed: ${err.message}`);
-    } finally {
-      setForecastingId(null);
     }
   };
 
@@ -625,12 +444,6 @@ export default function App() {
     const matchSearch = p.name.toLowerCase().includes(prodSearch.toLowerCase()) || p.sku.toLowerCase().includes(prodSearch.toLowerCase());
     const matchCat = prodCatFilter === 'All' || p.category === prodCatFilter;
     return matchSearch && matchCat;
-  });
-
-  const filteredOrders = orders.filter(o => {
-    const matchSearch = o.id.toLowerCase().includes(orderSearch.toLowerCase()) || o.customerName.toLowerCase().includes(orderSearch.toLowerCase());
-    const matchStatus = orderStatusFilter === 'All' || o.status === orderStatusFilter;
-    return matchSearch && matchStatus;
   });
 
   const filteredUsers = users.filter(u => {
@@ -684,7 +497,7 @@ export default function App() {
       {/* Main viewport area */}
       <main className="flex min-h-screen flex-1 flex-col overflow-x-hidden px-4 pb-6 pt-5 md:px-8 md:pt-8 xl:px-10">
         <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-[1480px] flex-col space-y-6">
-        
+
         {/* CORE ANALYTICS VIEW */}
         {currentSection === 'dashboard' && (
           <AnalyticsView
@@ -701,32 +514,17 @@ export default function App() {
         {currentSection === 'products' && (
           <ProductsPage
             categories={categories}
-            filteredProducts={filteredProducts}
-            prodSearch={prodSearch}
-            setProdSearch={setProdSearch}
-            prodCatFilter={prodCatFilter}
-            setProdCatFilter={setProdCatFilter}
-            selectedProductIds={selectedProductIds}
-            setSelectedProductIds={setSelectedProductIds}
-            onExportExcel={handleExportExcel}
-            onOpenNewProduct={() => setIsNewProductOpen(true)}
-            onBulkActivate={handleBulkActivate}
-            onBulkArchive={handleBulkArchive}
-            onBulkDelete={handleBulkDeleteProducts}
+            products={products}
             onSelectProduct={setActiveProduct}
-            onToggleProductStatus={handleToggleProductStatus}
-            onDeleteProduct={handleDeleteProduct}
+            onOpenNewProduct={() => setIsNewProductOpen(true)}
+            onProductsChanged={setProducts}
           />
         )}
 
         {/* ORDERS VIEW */}
         {currentSection === 'orders' && (
           <OrdersPage
-            filteredOrders={filteredOrders}
-            orderSearch={orderSearch}
-            setOrderSearch={setOrderSearch}
-            orderStatusFilter={orderStatusFilter}
-            setOrderStatusFilter={setOrderStatusFilter}
+            orders={orders}
             onExportExcel={handleExportExcel}
             onSelectOrder={setActiveOrder}
           />
@@ -809,7 +607,7 @@ export default function App() {
         <footer className="mt-auto flex min-h-12 flex-col items-center justify-between gap-2 rounded-xl border border-[#E2E8F0] bg-white px-6 py-2 text-[11px] text-[#64748B] shadow-sm md:flex-row">
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
             <span className="flex items-center font-bold text-[#16A34A] uppercase tracking-wide">
-              <span className="w-2.5 h-2.5 bg-[#16A34A] rounded-full mr-1.5 animate-pulse"></span> 
+              <span className="w-2.5 h-2.5 bg-[#16A34A] rounded-full mr-1.5 animate-pulse"></span>
               Hệ thống trực tuyến
             </span>
             <span className="border-l border-slate-200 pl-4">Độ trễ máy chủ: 24ms</span>
@@ -912,30 +710,11 @@ export default function App() {
       {isNewProductOpen && (
         <NewProductModal
           categories={categories}
-          newProdName={newProdName}
-          setNewProdName={setNewProdName}
-          newProdSKU={newProdSKU}
-          setNewProdSKU={setNewProdSKU}
-          newProdCategory={newProdCategory}
-          setNewProdCategory={setNewProdCategory}
-          newProdPrice={newProdPrice}
-          setNewProdPrice={setNewProdPrice}
-          newProdInventory={newProdInventory}
-          setNewProdInventory={setNewProdInventory}
-          newProdImages={newProdImages}
-          setNewProdImages={setNewProdImages}
-          newProdStatus={newProdStatus}
-          setNewProdStatus={setNewProdStatus}
-          newProdIsBestSeller={newProdIsBestSeller}
-          setNewProdIsBestSeller={setNewProdIsBestSeller}
-          newProdDescription={newProdDescription}
-          setNewProdDescription={setNewProdDescription}
-          newProdAttributesText={newProdAttributesText}
-          setNewProdAttributesText={setNewProdAttributesText}
-          newProdSpecificationText={newProdSpecificationText}
-          setNewProdSpecificationText={setNewProdSpecificationText}
           onClose={() => setIsNewProductOpen(false)}
-          onSubmit={handleCreateProduct}
+          onCreated={(product) => {
+            setProducts(prev => [product, ...prev]);
+            setIsNewProductOpen(false);
+          }}
         />
       )}
       </Suspense>

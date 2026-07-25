@@ -341,7 +341,7 @@ export function SettingsView() {
           tmnCode: vnpayTmnCode.trim(),
           hashSecret: vnpayHashSecret.trim(),
           url: vnpayUrl.trim() || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
-          returnUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/payments/vnpay/return` : 'http://localhost:3000/api/payments/vnpay/return',
+          returnUrl: `${window.location.origin}/api/payments/vnpay/return`,
           environment: 'sandbox',
       });
       setVnpayCheckOk(Boolean(data.ok));

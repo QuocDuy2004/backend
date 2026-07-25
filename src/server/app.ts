@@ -12,18 +12,45 @@ import { ensureSupportTables } from './services/support.service';
 
 export const app = express();
 
-const allowedOrigins = [
-  /^http:\/\/localhost:\d+$/,
-  /^http:\/\/127\.0\.0\.1:\d+$/,
-  /^http:\/\/192\.168\.\d+\.\d+:\d+$/,
-  /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,
-  /^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+:\d+$/,
-];
+// CORS: đọc toàn bộ từ env, không hardcode bất kỳ domain nào
+function buildAllowedOrigins(): (RegExp | string)[] {
+  const origins: (RegExp | string)[] = [];
+
+  // Local dev: bật khi NODE_ENV !== production
+  if (process.env.NODE_ENV !== 'production') {
+    origins.push(
+      /^https?:\/\/localhost:\d+$/,
+      /^https?:\/\/127\.0\.0\.1:\d+$/,
+      /^https?:\/\/192\.168\.\d+\.\d+:\d+$/,
+      /^https?:\/\/10\.\d+\.\d+\.\d+:\d+$/,
+    );
+  }
+
+  // APP_URL và FRONTEND_URL luôn được phép
+  [process.env.APP_URL, process.env.FRONTEND_URL].forEach((u) => {
+    const trimmed = u?.replace(/\/$/, '');
+    if (trimmed) origins.push(trimmed);
+  });
+
+  // EXTRA_CORS_ORIGINS: danh sách phân cách bằng dấu phẩy
+  process.env.EXTRA_CORS_ORIGINS?.split(',').forEach((o) => {
+    const trimmed = o.trim().replace(/\/$/, '');
+    if (trimmed) origins.push(trimmed);
+  });
+
+  return origins;
+}
+
+const allowedOrigins = buildAllowedOrigins();
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  if (origin && allowedOrigins.some((allowedOrigin) => allowedOrigin.test(origin))) {
+  const isAllowed = origin && allowedOrigins.some((allowedOrigin) =>
+    allowedOrigin instanceof RegExp ? allowedOrigin.test(origin) : allowedOrigin === origin
+  );
+
+  if (isAllowed) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Vary', 'Origin');
   }

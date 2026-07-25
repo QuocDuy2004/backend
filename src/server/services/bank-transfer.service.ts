@@ -214,7 +214,7 @@ export async function fetchBankTransactionsFromProvider() {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data?.status === 'error') {
-    throw new Error(data?.message || `Khong the lay danh sach giao dich (${response.status}).`);
+    throw new Error(data?.message || `Không thể lấy danh sách giao dịch (${response.status}).`);
   }
 
   return Array.isArray(data?.transactions) ? data.transactions as IncomingBankTransaction[] : [];
