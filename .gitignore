@@ -12,3 +12,5 @@ reg-log-*.json
 .env*
 !.env.example
 facebook-secrets.local.json
+
+.vercel

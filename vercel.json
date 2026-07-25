@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "routes": [
+    {
+      "src": "^/api/(.*)$",
+      "dest": "/api?path=$1"
+    },
+    {
+      "src": "^/webhook/(.*)$",
+      "dest": "/webhook?path=$1"
+    },
+    {
+      "src": "^(?:/(?!api/|webhook/|assets/|favicon.ico|robots.txt).*)$",
+      "dest": "/index.html"
+    }
+  ]
+}

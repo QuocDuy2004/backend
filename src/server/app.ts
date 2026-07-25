@@ -2,7 +2,6 @@ import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import net from 'net';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { ensureDatabaseSchema } from '../../database/ensure-database';
 import { env } from './config/env';
 import { bankTransferWebhookHandler } from './payments';
@@ -106,6 +105,7 @@ async function findAvailablePort(preferredPort: number) {
 
 async function mountFrontend(hmrPort: number) {
   if (env.nodeEnv !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
