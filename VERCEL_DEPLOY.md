@@ -34,8 +34,8 @@ Them cac bien sau cho moi truong `Production`:
 ```env
 NODE_ENV=production
 APP_URL=https://backend-5nxv.vercel.app
-FRONTEND_URL=https://backend-5nxv.vercel.app
-EXTRA_CORS_ORIGINS=
+FRONTEND_URL=https://frontend-ten-gamma-17.vercel.app
+EXTRA_CORS_ORIGINS=https://frontend-ten-gamma-17.vercel.app
 VITE_API_BASE_URL=
 JWT_SECRET=your-random-secret-at-least-32-characters
 JWT_EXPIRES_IN=7d
@@ -65,8 +65,9 @@ Ghi chu:
 - Khong commit `.env.local`, `.env.production.local`, hay mat khau that len GitHub.
 - Neu dung Aiven MySQL, thuong can `DB_SSL=true`.
 - Neu dung Railway, copy thang `MYSQL_PUBLIC_URL` hoac `DATABASE_URL` tu tab Variables va dan vao `DATABASE_URL`.
-- Neu frontend Expo/mobile goi API nay, dat `FRONTEND_URL` bang domain frontend do va them domain phu vao `EXTRA_CORS_ORIGINS`.
-- Sau khi gan custom domain, doi `APP_URL` va `FRONTEND_URL` sang domain moi roi redeploy.
+- Neu frontend Expo/mobile goi API nay, dat `FRONTEND_URL` va `EXTRA_CORS_ORIGINS` bang domain frontend do.
+- `APP_URL` van la domain backend, vi backend dung no de build return URL cho thanh toan.
+- Sau khi gan custom domain, chi can doi `APP_URL` neu backend doi domain; frontend domain thi giu trong `FRONTEND_URL`.
 - Neu muon day nhanh tu file local, sua `.env.vercel.local` roi chay:
 
 ```bash
@@ -80,7 +81,8 @@ Vi du:
 ```bash
 npx vercel env add NODE_ENV production --project backend-5nxv --value "production" --yes
 npx vercel env add APP_URL production --project backend-5nxv --value "https://backend-5nxv.vercel.app" --yes
-npx vercel env add FRONTEND_URL production --project backend-5nxv --value "https://backend-5nxv.vercel.app" --yes
+npx vercel env add FRONTEND_URL production --project backend-5nxv --value "https://frontend-ten-gamma-17.vercel.app" --yes
+npx vercel env add EXTRA_CORS_ORIGINS production --project backend-5nxv --value "https://frontend-ten-gamma-17.vercel.app" --yes
 npx vercel env add JWT_SECRET production --project backend-5nxv --value "your-random-secret-at-least-32-characters" --yes
 npx vercel env add DB_HOST production --project backend-5nxv --value "mysql-xxx.aivencloud.com" --yes
 npx vercel env add DB_PORT production --project backend-5nxv --value "3306" --yes

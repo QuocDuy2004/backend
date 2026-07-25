@@ -38,6 +38,7 @@ services:
         sync: false
 
       # URL app frontend / Expo – dùng cho CORS và redirect thanh toán
+      # Ví dụ: https://frontend-ten-gamma-17.vercel.app
       - key: FRONTEND_URL
         sync: false
 
