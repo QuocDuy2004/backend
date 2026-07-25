@@ -76,14 +76,14 @@ export function CustomersPage({
   };
 
   return (
-          <div className="animate-fade-in space-y-6">
-            <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-5 rounded-2xl border border-blue-100/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex flex-col justify-between gap-4 p-5 border bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent rounded-2xl border-blue-100/60 md:flex-row md:items-center">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-blue-600" />
                   <h2 className="text-base font-extrabold text-slate-900">Quản Lý Khách Hàng & Tài Khoản</h2>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs leading-relaxed text-slate-500">
                   Quản lý hồ sơ khách hàng, vai trò truy cập, trạng thái tài khoản và lịch sử mua hàng liên quan.
                 </p>
               </div>
@@ -102,7 +102,7 @@ export function CustomersPage({
                     <p className="text-xl font-bold text-[#0F172A] mt-1.5 block">{item.value}</p>
                   </div>
                   <div className={`flex h-11 w-11 items-center justify-center rounded-lg border ${item.tone}`}>
-                    <item.icon className="h-5 w-5" />
+                    <item.icon className="w-5 h-5" />
                   </div>
                 </div>
               ))}
@@ -114,13 +114,13 @@ export function CustomersPage({
                 <input
                   type="text"
                   placeholder="Tìm khách hàng theo tên, email..."
-                  className="w-full bg-transparent text-xs font-medium text-slate-800 outline-none placeholder:text-slate-400"
+                  className="w-full text-xs font-medium bg-transparent outline-none text-slate-800 placeholder:text-slate-400"
                   value={custSearch}
                   onChange={(e) => setCustSearch(e.target.value)}
                 />
               </div>
 
-              <div className="flex w-full flex-wrap items-center justify-end gap-2 lg:w-auto">
+              <div className="flex flex-wrap items-center justify-end w-full gap-2 lg:w-auto">
                 <CustomSelect
                   value={custTierFilter}
                   onChange={setCustTierFilter}
@@ -145,9 +145,9 @@ export function CustomersPage({
               <div className="flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3.5 text-xs font-semibold text-blue-900 animate-slide-down sm:flex-row sm:items-center sm:justify-between">
                 <span>Đã chọn {selectedCustomerIds.length} khách hàng. Chọn thao tác:</span>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => handleBulkStatus('active')} className="rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700">Kích hoạt</button>
-                  <button onClick={() => handleBulkStatus('blocked')} className="rounded bg-slate-800 px-3 py-1 text-slate-100 hover:bg-slate-700">Khóa</button>
-                  <button onClick={() => setSelectedCustomerIds([])} className="rounded border border-blue-200 bg-white px-3 py-1 text-blue-700 hover:bg-blue-100">Bỏ chọn</button>
+                  <button onClick={() => handleBulkStatus('active')} className="px-3 py-1 text-white bg-blue-600 rounded hover:bg-blue-700">Kích hoạt</button>
+                  <button onClick={() => handleBulkStatus('blocked')} className="px-3 py-1 rounded bg-slate-800 text-slate-100 hover:bg-slate-700">Khóa</button>
+                  <button onClick={() => setSelectedCustomerIds([])} className="px-3 py-1 text-blue-700 bg-white border border-blue-200 rounded hover:bg-blue-100">Bỏ chọn</button>
                   <button onClick={handleBulkDelete} className="flex items-center gap-1.5 rounded bg-rose-600 px-3 py-1 text-white hover:bg-rose-700">
                     <Trash2 className="h-3.5 w-3.5" /> Xóa đã chọn
                   </button>
@@ -155,7 +155,7 @@ export function CustomersPage({
               </div>
             )}
 
-            <div className="hidden overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-sm md:block">
+            <div className="hidden overflow-x-auto bg-white border shadow-sm rounded-xl border-slate-200/80 md:block">
               <table className="min-w-[1180px] w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase text-slate-400">
@@ -164,7 +164,7 @@ export function CustomersPage({
                         type="checkbox"
                         checked={allVisibleSelected}
                         onChange={(e) => handleToggleAllVisible(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        className="text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                       />
                     </th>
                     <th className="px-5 py-3.5">Khách hàng</th>
@@ -175,32 +175,32 @@ export function CustomersPage({
                     <th className="px-5 py-3.5 text-center">Thao tác</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
+                <tbody className="text-xs divide-y divide-slate-100">
                   {filteredUsers.map(user => {
                     const isChecked = selectedCustomerIds.includes(user.id);
                     return (
-                    <tr key={user.id} className="cursor-pointer transition-colors hover:bg-blue-50/35" onClick={() => setActiveCustomer(user)}>
+                    <tr key={user.id} className="transition-colors cursor-pointer hover:bg-blue-50/35" onClick={() => setActiveCustomer(user)}>
                       <td className="w-10 px-5 py-3" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={(e) => handleToggleCustomer(user.id, e.target.checked)}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          className="text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                         />
                       </td>
                       <td className="px-5 py-3">
-                        <div className="flex max-w-full items-center gap-3 text-left">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 font-extrabold text-blue-700">
+                        <div className="flex items-center max-w-full gap-3 text-left">
+                          <div className="flex items-center justify-center w-8 h-8 font-extrabold text-blue-700 bg-blue-100 rounded-full shrink-0">
                             {user.name?.[0]?.toUpperCase() || 'U'}
                           </div>
                           <div className="min-w-0">
-                            <span className="block truncate font-extrabold text-slate-800">{user.name}</span>
+                            <span className="block font-extrabold truncate text-slate-800">{user.name}</span>
                             <span className="mt-0.5 block truncate font-mono text-[10px] text-slate-400">{user.email}</span>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-3 font-bold capitalize text-slate-500">{user.role}</td>
-                      <td className="px-5 py-3 text-center font-bold text-slate-700">{user.ordersCount || 0}</td>
+                      <td className="px-5 py-3 font-bold text-center text-slate-700">{user.ordersCount || 0}</td>
                       <td className="px-5 py-3 font-mono text-[10px] font-bold text-slate-500">{formatCustomerDate(user)}</td>
                       <td className="px-5 py-3 text-center">
                         <span className={`inline-block rounded-full border px-3 py-1 text-[10px] font-extrabold uppercase ${
@@ -231,7 +231,7 @@ export function CustomersPage({
                   })}
                   {filteredUsers.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-400 text-sm">
+                      <td colSpan={8} className="py-12 text-sm text-center text-slate-400">
                         Không tìm thấy khách hàng nào.
                       </td>
                     </tr>
@@ -244,22 +244,22 @@ export function CustomersPage({
               {filteredUsers.map(user => {
                 const isChecked = selectedCustomerIds.includes(user.id);
                 return (
-                <div key={user.id} className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300" onClick={() => setActiveCustomer(user)}>
+                <div key={user.id} className="p-4 transition-all bg-white border shadow-sm cursor-pointer rounded-xl border-slate-200 hover:border-slate-300" onClick={() => setActiveCustomer(user)}>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3 text-left">
+                    <div className="flex items-center min-w-0 gap-3 text-left">
                       <div onClick={(e) => e.stopPropagation()} className="shrink-0">
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={(e) => handleToggleCustomer(user.id, e.target.checked)}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          className="text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                         />
                       </div>
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 font-extrabold text-blue-700">
+                      <div className="flex items-center justify-center w-10 h-10 font-extrabold text-blue-700 bg-blue-100 rounded-full shrink-0">
                         {user.name?.[0]?.toUpperCase() || 'U'}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-extrabold text-slate-900">{user.name}</p>
+                        <p className="text-sm font-extrabold truncate text-slate-900">{user.name}</p>
                         <p className="truncate font-mono text-[10px] text-slate-400">{user.email}</p>
                       </div>
                     </div>
@@ -272,7 +272,7 @@ export function CustomersPage({
                     </span>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 text-xs">
+                  <div className="grid grid-cols-2 gap-3 pt-3 mt-4 text-xs border-t border-slate-100">
                     <div>
                       <p className="text-[10px] font-bold uppercase text-slate-400">Vai trò</p>
                       <p className="mt-1 font-bold capitalize text-slate-700">{user.role}</p>
@@ -287,7 +287,7 @@ export function CustomersPage({
                     </div>
                   </div>
 
-                  <div className="mt-4 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-end mt-4" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => onToggleCustomerStatus(user)}
                       className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
@@ -306,7 +306,7 @@ export function CustomersPage({
                 );
               })}
               {filteredUsers.length === 0 && (
-                <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400 shadow-sm">
+                <div className="p-8 text-sm text-center bg-white border shadow-sm rounded-xl border-slate-200 text-slate-400">
                   Không tìm thấy khách hàng nào.
                 </div>
               )}
